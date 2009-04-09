@@ -68,11 +68,7 @@
                                      when more
                                      collect (+ (first-offset o)
                                                 (swf-part-size i))))
-   (*shape-tag-version* 1 :local t
-                        :extra (format t "d-f-t id=~s offset=~s~%~s~%table=~s~%"
-                                       font-id first-offset offset-table-rest
-                                       (cons first-offset offset-table-rest)))
-   ;;fixme: is this right?
+   (*shape-tag-version* 1 :local t)
    (glyph-shape-table (counted-list (swf-type 'shape) (/ first-offset 2)))))
 
 (define-swf-type define-text-tag (swf-tag)
@@ -254,12 +250,7 @@
    (button-id (ui16))
    (reserved-flags (ub 7))
    (track-as-menu (bit-flag))
-   (action-offset (ui16)
-                  #+nil(format t "action-offset=~s~%size=~s~%"
-                          action-offset
-                           (if (zerop action-offset)
-                               (- (bytes-left-in-tag) 1)
-                               (- action-offset 3))))
+   (action-offset (ui16))
    (characters (sized-list (swf-type 'button-record)
                            (if (zerop action-offset)
                                (- (bytes-left-in-tag) 1)
@@ -399,35 +390,22 @@
    (language-code (ui8));; lang-code 1=latin,2=jp,3=kr,4=simplified ch,5=trad ch
    (font-name-len (ui8))
    (font-name (counted-list (ui8) font-name-len))
-   (num-glyphs (ui16)
-               :extra (progn
-                        #+nil(format t "id:~s l~s j~s s~s a~s wo ~s wc ~s i~s b~s lc~s namelen~s~%name ~s~%glyphs ~s~%"
-                               font-id
-                               has-layout shift-jis small-text ansi wide-offsets wide-codes italic bold
-                               language-code font-name-len font-name num-glyphs)))
+   (num-glyphs (ui16))
    (offset-table (counted-list (if wide-offsets (ui32) (ui16)) num-glyphs))
-   (code-table-offset (if wide-offsets (ui32) (ui16))
-                      :extra (progn
-                               #+nil(format t "offset-table=~s~%code-table-offset=~s from ~s~%"
-                                             offset-table code-table-offset
-                                                 (bytes-left-in-tag))))
+   (code-table-offset (if wide-offsets (ui32) (ui16)))
    (*shape-tag-version* 1 :local t) ;;fixme: what is correct value?
-   #+nil(foo 0 :local t)
    ;; fixme: figure out how to use the offset table here instead of relying on
    ;; the *allow-short-shapes* hack
    (*allow-short-shapes* t :local t)
-   (glyph-shape-table (counted-list (progn
-                                      #+nil(format t "reading shape ~s, ~s bytes left~%"
-                                              (incf foo) (bytes-left-in-tag))
-                                      (swf-type 'shape)) num-glyphs)
-                      :extra (format t "after shapes, ~s bytes left~%"
-                                     (bytes-left-in-tag)))
+   (glyph-shape-table (counted-list (swf-type 'shape) num-glyphs))
    (code-table (counted-list (if wide-codes (ui16) (ui8)) num-glyphs))
    (font-ascent (si16) :optional has-layout)
    (font-descent (si16) :optional has-layout)
    (font-leading (si16) :optional has-layout)
-   (font-advance-table (counted-list (si16) num-glyphs) :optional has-layout)
-   (font-bounds-table (counted-list (swf-type 'rect) num-glyphs) :optional has-layout)
+   (font-advance-table (counted-list (si16) num-glyphs)
+                       :optional has-layout)
+   (font-bounds-table (counted-list (swf-type 'rect) num-glyphs)
+                      :optional has-layout)
    (kerning-count (ui16) :optional has-layout)
    (kerning-table (counted-list (swf-type  (if wide-codes
                                             'kerning-record-wide
@@ -557,7 +535,6 @@
    (po3-ratio (ui16) :optional has-ratio)
    (name (string-sz-utf8) :optional has-name)
    (clip-depth (ui16) :optional has-clip-depth)
-   ;;(todo...filters raw-bytes-to-end-of-tag)
    (surface-filter-list (swf-type 'filter-list) :optional has-filter-list)
    (blend-mode (ui8) :optional has-blend-mode)
    (bitmap-cache (ui8) :optional has-cache-as-bitmap)

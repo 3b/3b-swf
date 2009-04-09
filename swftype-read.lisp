@@ -81,7 +81,7 @@
 (declaim (inline u->s u8->s8 u16->s16 u32->s32 u16->fixed8 u32->fixed))
 (defun u->s (bits value) ;; convert unsigned bits to signed
   (if (zerop bits)
-      value ;;(progn (format t "u->s ~s ~s~%" bits value) value)
+      value
       (if (logbitp (1- bits) value)
           (dpb value (byte (1- bits) 0) -1)
           value)))
@@ -236,8 +236,8 @@
                    (chipz:decompress 'nil 'chipz:zlib ,',source)))
               (with-reader-block (size &body body)
                 ;;fixme: finish this, idea is that we track the end of block
-                ;; position, and all the readers can check it if avilable
-                ;; an complain if they try to read past the end
+                ;; position, and all the readers can check it if available
+                ;; and complain if they try to read past the end
                 ;;  (or use it to read to the end, which is immediate reason
                 ;;   for adding it)
                 `(let ((*reader-end-of-block*

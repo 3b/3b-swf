@@ -14,9 +14,7 @@
 
 (define-swf-type shape-record ()
   :auto
-  (#+nil(junk (format t "reading shape-record, bytes-left = ~s~%partial=~s~%" (bytes-left-in-tag) *partial-octet-read*))
-   (type-flag (bit-flag)) ;; aligned?
-   )
+  ((type-flag (bit-flag))) ;; aligned?
   :subclass (if type-flag
                 'edge-shape-record
                 'style-change-or-end-shape-record))
@@ -29,12 +27,7 @@
    (state-line-style (bit-flag) :derived (not (null (line-style o))))
    (state-fill-style-1 (bit-flag) :derived (not (null (fill-style-1 o))))
    (state-fill-style-0 (bit-flag) :derived (not (null (fill-style-0 o))))
-   (state-move-to (bit-flag) :derived (not (null (move-to o)))
-                  #+nil :extra #+nil (format t "s-c-o-e-s-r: ~s ~s ~s ~s ~s~%"
- state-move-to
-                    state-fill-style-1 state-fill-style-0
-                    state-line-style state-new-styles
-)))
+   (state-move-to (bit-flag) :derived (not (null (move-to o)))))
   :subclass (if (or state-move-to
                     state-fill-style-1 state-fill-style-0
                     state-line-style state-new-styles)
@@ -44,18 +37,11 @@
 (define-swf-type style-change-shape-record (style-change-or-end-shape-record)
   :this-var o
   :auto
-  ((move-to (swf-type 'state-move-to) :optional (super state-move-to)
-            #+nil :extra #+nil (format t "s-c-s-r: ~s ~s ~s ~s ~s~%"
-                           (super state-move-to)
-                           (super state-fill-style-1)
-                           (super state-fill-style-0)
-                           (super state-line-style) (super state-new-styles)
-                           ))
+  ((move-to (swf-type 'state-move-to) :optional (super state-move-to))
    (fill-style-0 (ub *shape-fill-bits*) :optional (super state-fill-style-0))
    (fill-style-1 (ub *shape-fill-bits*) :optional (super state-fill-style-1))
 
    (line-style (ub *shape-line-bits*) :optional (super state-line-style))
-   ;;(*shape-tag-version* 1 :local t) ;; not sure about this, but internal line-style seem to be line-style1 even when we are in a define-shape-4
    (fill-styles (swf-type 'fill-style-array) :optional (super state-new-styles))
    (line-styles (swf-type 'line-style-array) :optional (super state-new-styles))
    (new-fill-bits (ub 4) :optional (super state-new-styles)
@@ -111,7 +97,7 @@
    (anchor-delta-x (sb (+ 2 num-bits)))
    (anchor-delta-y (sb (+ 2 num-bits)))))
 (defparameter *allow-short-shapes* nil
-  "workaround for .swf files with empty shapes 1 byte a part in font tags")
+  "workaround for .swf files with empty shapes 1 byte apart in font tags")
 (define-swf-type shape ()
   :this-var o
   :auto
@@ -122,16 +108,8 @@
    ;;:derived (reduce 'max (shape-records o) :key 'shape-min-line-bits)
    (*shape-line-bits* num-line-bits :local t)
    #+nil(foo 0 :local t)
-   (shape-records (list-until-type
-                   (progn #+nil (format t "   s-rec ~s, ~s bytes left~%" (incf foo)
-                                  (bytes-left-in-tag))
-                          (swf-type 'shape-record))
-                   'shape-end-record)
-                  ;; fixme: is this valid? got a file with shapes 1
-                  ;; byte apart in define-font-2, so assuming so...
-                  ;; -- 16 breaks in morph-shape with this, 17 breaks
-                  ;; in font stuff without it...
-                  ;; fixme: add
+   (shape-records (list-until-type (swf-type 'shape-record) 'shape-end-record)
+                  ;; hack around some files with 1-byte shapes in font tags
                   :optional (not (and *allow-short-shapes*
                                       (zerop num-fill-bits)
                                       (zerop num-line-bits)))))

@@ -48,33 +48,12 @@
   ((action-record-size (ui32) :derived (swf-part-size (actions o))
                        :extra
                        (progn
-                         #+nil(format t "clip-action-recordsize= ~s/~s :: ~b / ~b~%"
-                                 action-record-size (bytes-left-in-tag)
-                                 action-record-size (bytes-left-in-tag))
                          ;; work around buggy swf files?...
                          (when (> action-record-size (bytes-left-in-tag))
                            (setf action-record-size
-                                (+ 2 (ldb (byte 16 16) action-record-size)))
-                           #+nil(format t "-> = ~s/~s :: ~b / ~b~%"
-                                   action-record-size (bytes-left-in-tag)
-                                   action-record-size (bytes-left-in-tag))
-                           ;; rest of tag doesn't work
-                           #+nil(setf action-record-size (- (bytes-left-in-tag)
-                                                       (if (>= *swf-version* 6)
-                                                           4 2)))
-                           ;; doesn't seem to be wrong byte order...
-                           #+nil(rotatef (ldb (byte 8 24) action-record-size)
-                                         (ldb (byte 8 0) action-record-size))
-                           #+nil(rotatef (ldb (byte 8 16) action-record-size)
-                                         (ldb (byte 8 8) action-record-size)))
-                         #+nil(format t "clip-action-record ~s bytes~%"
-                                 (if (key-press (super flags))
-                                     (1- action-record-size)
-                                     action-record-size))))
+                                 (+ 2 (ldb (byte 16 16) action-record-size))))))
 
    (key-code (ui8) :optional (key-press (super flags)))
-   ;;(%action-start (tag-file-position-hack))
-   ;;(:bind *tag-end* (+ %action-start action-record-size))
    (actions (sized-list (swf-type 'action-record)
                         (if (key-press (super flags))
                             (1- action-record-size)
