@@ -51,7 +51,7 @@
   :auto
   ((jpeg-data (rest-of-tag))))
 
-(define-swf-type set-background-color-tag (swf-tag)
+(define-swf-type set-background-color-tag (swf-tag) ;;+rw
   :id 9
   :auto ((background-color (swf-type 'rgb))))
 
@@ -198,13 +198,13 @@
   :id 26
   :this-var o
   :auto
-  ((has-clip-actions (bit-flag) :derive (not (null (clip-actions o))))
-   (has-clip-depth (bit-flag) :derive (not (null (clip-depth o))))
-   (has-name (bit-flag) :derive (not (null (name o))))
-   (has-ratio (bit-flag) :derive (not (null (po2-ratio o))))
-   (has-color-transform (bit-flag) :derive (not (null (color-transform o))))
-   (has-matrix (bit-flag) :derive (not (null (matrix o))))
-   (has-character (bit-flag) :derive (not (null (character-id o))))
+  ((has-clip-actions (bit-flag) :derived (not (null (clip-actions o))))
+   (has-clip-depth (bit-flag) :derived (not (null (clip-depth o))))
+   (has-name (bit-flag) :derived (not (null (name o))))
+   (has-ratio (bit-flag) :derived (not (null (po2-ratio o))))
+   (has-color-transform (bit-flag) :derived (not (null (color-transform o))))
+   (has-matrix (bit-flag) :derived (not (null (matrix o))))
+   (has-character (bit-flag) :derived (not (null (character-id o))))
    (move-flag (bit-flag))
    (depth (ui16))
    (character-id (ui16) :optional  has-character)
@@ -324,12 +324,13 @@
                              (lambda (x)
                                (typep x 'swf-end-tag))))))
 
-(define-swf-type frame-label-tag (swf-tag)
+(define-swf-type frame-label-tag (swf-tag) ;;+rw
   :id 43
   :auto
   ((name (string-sz-utf8))
    ;; todo: convert to/from boolean (0/1)
-   (named-anchor-flag (ui8) :optional (not (zerop (bytes-left-in-tag))))))
+   (named-anchor-flag (ui8) :initform nil
+                      :optional (not (zerop (bytes-left-in-tag))))))
 
 
 (define-swf-type sound-stream-head-2-tag (swf-tag)
@@ -416,7 +417,7 @@
   :id 56
   :auto
   ((asset-count (ui16))
-   (assets (counted-list (list (ui16) (string-sz-utf8)) asset-count)
+   (assets (counted-list (enumerated-list (ui16) (string-sz-utf8)) asset-count)
            :extra (format t "exported assets~%~s~%" assets))))
 
 #+untested
@@ -425,7 +426,7 @@
   :auto
   ((url (string-sz-utf8))
    (asset-count (ui16))
-   (assets (counted-list (list (ui16) (string-sz-utf8)) asset-count))))
+   (assets (counted-list (enumerated-list (ui16) (string-sz-utf8)) asset-count))))
 
 #+untested
 (define-swf-type enable-debugger (swf-tag)
@@ -483,10 +484,10 @@
   :auto ((reserved (ui16))
          (password (string-sz-utf8))))
 
-(define-swf-type script-limits-tag (swf-tag)
+(define-swf-type script-limits-tag (swf-tag) ;;rw
   :id 65
   :auto
-  ((max-recurson-depth (ui16))
+  ((max-recursion-depth (ui16))
    (script-timeout-seconds (ui16))))
 
 #+untested
@@ -494,17 +495,17 @@
   :id 66
   :auto ((depth (ui16))
          (tab-index (ui16))))
-(define-swf-type file-attributes-tag (swf-tag)
+(define-swf-type file-attributes-tag (swf-tag) ;;rw
   :id 69
   :auto
-  ((reserved1=0 (ub 1)) ;; 0
+  ((reserved1=0 (ub 1) :initform 0) ;; 0
    (use-direct-blit (bit-flag))
    (use-gpu (bit-flag))
    (has-metadata (bit-flag))
    (actionscript-3 (bit-flag))
-   (reserved2=0 (ub 2))
+   (reserved2=0 (ub 2) :initform 0)
    (use-network (bit-flag))
-   (reserved3=0 (ub 24))))
+   (reserved3=0 (ub 24) :initform 0)))
 
 (define-swf-type place-object-3-tag (swf-tag)
   :id 70
@@ -549,7 +550,7 @@
    (reserved (ui8) :derived 1)
    (reserved2 (ui8) :derived 0)
    (asset-count (ui16))
-   (assets (counted-list (list (ui16) (string-sz-utf8)) asset-count))))
+   (assets (counted-list (enumerated-list (ui16) (string-sz-utf8)) asset-count))))
 
 (define-swf-type define-font-align-zones-tag (swf-tag)
   :id 73
@@ -610,13 +611,13 @@
                                             'kerning-record-narrow))
                                 kerning-count) :optional has-layout)))
 
-(define-swf-type symbol-class-tag (swf-tag)
+(define-swf-type symbol-class-tag (swf-tag) ;;+rw
   :id 76
   :this-var o
   :auto
   ((num-symbols (ui16) :derived (length (symbol-class-symbols o)))
    ;; { (tag u16) (name string) } *num-symbols
-   (symbol-class-symbols (counted-list (list (ui16) (string-sz-utf8))
+   (symbol-class-symbols (counted-list (enumerated-list (ui16) (string-sz-utf8))
                                         num-symbols)))
   :print-unreadably ("~s" (symbol-class-symbols o)))
 
@@ -625,7 +626,7 @@
   :auto ((metadata (string-sz-utf8)
                    :extra (format t "metadata=~s~%" metadata))))
 
-(define-swf-type do-abc-tag (swf-tag)
+(define-swf-type do-abc-tag (swf-tag) ;;+r?w
   :id 82
   :this-var o
   :auto
@@ -640,11 +641,13 @@
   ((*shape-tag-version* 4 :local t)
    (shape-id (ui16))
    (shape-bounds (swf-type 'rect))
+   ;;(areserved (align 8) :initform 0)
    (edge-bounds (swf-type 'rect))
-   (reserved (ub 5 ))
-   (uses-fill-winding-rule (bit-flag))
-   (uses-non-scaling-strokes (bit-flag))
-   (uses-scaling-strokes (bit-flag))
+   (reserved (ub 5) :initform 0)
+   ;; fixme: decide on defaults?
+   (uses-fill-winding-rule (bit-flag) :initform nil)
+   (uses-non-scaling-strokes (bit-flag) :initform nil)
+   (uses-scaling-strokes (bit-flag) :initform t)
    (shapes (swf-type 'shape-with-style))))
 
 (define-swf-type define-morph-shape-2-tag (swf-tag)
@@ -676,9 +679,9 @@
   :id 86
   :auto
   ((scene-count (encodedu32))
-   (scenes (counted-list (list (encodedu32) (string-sz-utf8)) scene-count))
+   (scenes (counted-list (enumerated-list (encodedu32) (string-sz-utf8)) scene-count))
    (frame-label-count (encodedu32))
-   (frames (counted-list (list (encodedu32) (string-sz-utf8))
+   (frames (counted-list (enumerated-list (encodedu32) (string-sz-utf8))
                          frame-label-count))))
 
 ;;    87 define-binary-data-tag

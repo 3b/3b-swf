@@ -7,12 +7,13 @@
 
 
 (defun finish-partial-write (stream)
-  (when *partial-octet-write*
-    (format t "--flushing leftover ~s bits = ~b~%" (cdr *partial-octet-write*) (car *partial-octet-write*))
+  (when (and *partial-octet-write* (not (zerop (cdr *partial-octet-write*))))
+    #+nil(format t "--flushing leftover ~s bits = ~b~%" (cdr *partial-octet-write*) (car *partial-octet-write*))
     (write-byte (ash (car *partial-octet-write*)
-                     (- 8 (cdr *partial-octet-write*)))
-                stream)
-    (format t "-- wrote ~b~%~%" (ash (car *partial-octet-write*)
+                          (- 8 (cdr *partial-octet-write*)))
+                     stream)
+
+    #+nil(format t "-- wrote ~b~%~%" (ash (car *partial-octet-write*)
                                      (- 8 (cdr *partial-octet-write*)))))
   (setf *partial-octet-write* nil))
 
@@ -33,29 +34,32 @@
 ;; (end is easiest to add during macroexpansion, but first
 ;;  looks more like write-byte... going with first for now)
 (defmethod write-bits (data count (stream stream))
-  (format t "--~%writing ~s bits to stream = ~b  <~s>~%" count data *partial-octet-write*)
+  (setf data (ldb (byte count 0) data))
+  #+nil(format t "--writing ~sb = ~b  <~s>" count data *partial-octet-write*)
   (when *partial-octet-write*
-    (format t "  leftover ~s bits = ~b~%" (cdr *partial-octet-write*) (car *partial-octet-write*))
+    #+nil(format t " (p ~s = ~b " (cdr *partial-octet-write*) (car *partial-octet-write*))
       ;; we have partial data, combine with current write
     (setf (ldb (byte (cdr *partial-octet-write*) count)
                data)
           (car *partial-octet-write*))
-    (incf count (cdr *partial-octet-write*)))
-  (format t "  == writing ~s bits to stream = ~b~%" count data)
+    (incf count (cdr *partial-octet-write*))
+    #+nil(format t " ->~s  = ~b)" count data))
+
   ;; fixme: probably should reuse existing cons if possible
   (setf *partial-octet-write* nil)
   (loop for bits-left = count then (- bits-left 8)
         for low-bit = (- bits-left 8)
-        for octet = (when (plusp low-bit) (ldb (byte 8 low-bit) data))
-        while (> bits-left 8)
-        do (format t "writing octet to stream ~b, ~s left~%" octet bits-left)
+        for octet = (when (>= low-bit 0) (ldb (byte 8 low-bit) data))
+        while (>= bits-left 8)
+        ;;do (format t "@ ~b / ~s" octet bits-left)
         do (write-octet octet stream)
         finally (when (> bits-left 0)
-                  (format t " done write, ~s bits left = ~b~%" bits-left
+                  #+nil(format t " ->  ~s left = ~b" bits-left
                           (ldb (byte bits-left 0) data))
                   (setf *partial-octet-write*
                         (cons (ldb (byte bits-left 0) data)
                               bits-left))))
+  #+nil(format t "~%")
   (values))
 
 
@@ -132,92 +136,110 @@
                                &body body)
   ;; todo: allow setting byte order for bitfields
   `(macrolet ((align (bits)
-                `(write-align-source ,bits ,',source))
-              (ub (bits &key align)
-                `(progn
-                   ,@(when align `((align ,align)))
-                   (write-ub ,',value-arg ,bits ,',source)))
-              (sb (bits)
-                `(write-sb ,',value-arg ,bits ,',source))
-              (fb (bits)
-                `(write-sb (floor (* ,(expt 2 16) ,',value-arg)) ,bits ,',source))
-              ,@(loop for a in '(ui8 ui16 ui32 ui64 si8 si16 si32
-                                 fixed8 fixed float16 float32 float64
-                                 twips-u16 twips-s16)
-                      for b in '(write-ui8 write-ui16 write-ui32 write-ui64
-                                 write-si8 write-si16 write-si32
-                                 write-fixed8 write-fixed
-                                 write-float16 write-float32 write-float64
-                                 write-twips-u16 write-twips-s16)
-                      collect `(,a () `(,',b ,',value-arg ,',source)))
-              (encodedu32 ()
-                `(write-encodedu32 ,',value-arg ,',source))
-              (bit-flag (&key align)
-                `(progn
-                   ,@(when align `((align ,align)))
-                   (write-bit-flag ,',value-arg ,',source)))
-              (swf-type (type)
-                (declare (ignore type))
-                `(write-swf-part ,',value-arg ,',source))
-              ;; these may need to bind swf-type internally to pass the value
-              ;; arg
-              (sized-list (type size)
-                (declare (ignore size))
-                ;; fixme: verify we don't go over size...
-                (alexandria:with-gensyms (i)
-                  `(loop for ,i in ,',value-arg
-                         do (let ((,',value-arg ,i))
-                                (declare (ignorable ,',value-arg))
-                              ,type))))
-              (counted-list (type count)
-                (alexandria:with-gensyms (i)
-                  `(progn
-                     (assert (= (length ,',value-arg) ,count))
-                     (loop for ,i in ,',value-arg
-                           do (let ((,',value-arg ,i))
-                                ,type)))))
-              (list-until (type test)
-                (declare (ignore test))
-                ;; fixme: probably should verify that test hold for last element an no others
-                (alexandria:with-gensyms (i)
-                  `(loop for ,i in ,',value-arg
-                         do (let ((,',value-arg ,i))
-                              ,type))))
-              (list-until-type (type end-type)
-                (declare (ignore end-type))
-                ;; fixme: probably should verify types
-                (alexandria:with-gensyms (i)
-                  `(loop for ,i in ,',value-arg
-                         do (let ((,',value-arg ,i))
-                              ,type))))
+                `(write-align-source ,bits ,',source)))
+       (macrolet ((ub (bits &key align)
+                 `(progn
+                    ,@(when align `((align ,align)))
+                    (write-ub (floor ,',value-arg) ,bits ,',source)))
+               (sb (bits)
+                 `(write-sb (floor ,',value-arg) ,bits ,',source))
+               (sb-twips (bits)
+                 `(write-sb (twips->u16 ,',value-arg) ,bits ,',source))
+               (fb (bits)
+                 `(write-sb (floor (* ,(expt 2 16) ,',value-arg)) ,bits ,',source))
+               ,@(loop for a in '(ui8 ui16 ui32 ui64 si8 si16 si32
+                                  fixed8 fixed float16 float32 float64
+                                  twips-u16 twips-s16)
+                       for b in '(write-ui8 write-ui16 write-ui32 write-ui64
+                                  write-si8 write-si16 write-si32
+                                  write-fixed8 write-fixed
+                                  write-float16 write-float32 write-float64
+                                  write-twips-u16 write-twips-s16)
+                       collect `(,a () `(progn
+                                          #+nil(format t "writing ~s = ~s~%" ',',a
+                                                  ,',value-arg)
+                                          (when ,',value-arg
+                                            (,',b (floor ,',value-arg) ,',source)))))
+               (encodedu32 ()
+                 `(write-encodedu32 ,',value-arg ,',source))
+               (bit-flag (&key align)
+                 `(progn
+                    ,@(when align `((align ,align)))
+                    (write-bit-flag ,',value-arg ,',source)))
+               (swf-type (type)
+                 (declare (ignore type))
+                 `(write-swf-part ,',value-arg ,',source))
+               ;; these may need to bind swf-type internally to pass the value
+               ;; arg
+               (sized-list (type size)
+                 (declare (ignore size))
+                 ;; fixme: verify we don't go over size...
+                 (alexandria:with-gensyms (i)
+                   `(loop for ,i in ,',value-arg
+                          do (let ((,',value-arg ,i))
+                               (declare (ignorable ,',value-arg))
+                               ,type))))
+               (counted-list (type count)
+                 (alexandria:with-gensyms (i)
+                   `(progn
+                      (assert (= (length ,',value-arg) ,count))
+                      (loop for ,i in ,',value-arg
+                            do (let ((,',value-arg ,i))
+                                 ,type)))))
+               (list-until (type test)
+                 (declare (ignore test))
+                 ;; fixme: probably should verify that test hold for last element an no others
+                 (alexandria:with-gensyms (i)
+                   `(loop for ,i in ,',value-arg
+                          do (let ((,',value-arg ,i))
+                               ,type))))
 
-              (string-sz-utf8 (&optional max-length)
-                (alexandria:once-only (max-length)
-                  `(progn
-                     (align 8)
-                     (let ((octets (babel:string-to-octets
-                                    ,',value-arg :encoding :utf-8)))
-                       (when ,max-length
-                         (assert (<= (1+ (length octets)) ,max-length)))
-                       (write-sequence octets
-                                       ,',source))
-                     (write-byte 0 ,',source))))
+               (list-until-type (type end-type)
+                 (declare (ignore end-type))
+                 ;; fixme: probably should verify types
+                 (alexandria:with-gensyms (i)
+                   `(loop for ,i in ,',value-arg
+                          do (let ((,',value-arg ,i))
+                               ,type))))
 
-              (zlib-data ()
-                `(progn
-                   (align 8)
-                   (write-sequence
-                    (salza2:compress-data ,',value-arg 'salza2:zlib-compressor)
-                    ,',source)))
-              (rest-of-tag ()
-                `(write-sequence ,',value-arg ,',source))
-              (bytes-left-in-tag ()
-                `(progn (format t "called bytes-left-in-tag during write?")
-                        1))
-              (next-octet-zero-p ()
+               ;; override LIST for write and size to go by component
+               (enumerated-list (&rest types)
+                 `(progn
+                    ,@(loop for i in types
+                            collect `(let ((,',value-arg (pop ,',value-arg)))
+                                       ,i))))
+
+               (string-sz-utf8 (&optional max-length)
+                 (alexandria:once-only (max-length)
+                   `(progn
+                      (align 8)
+                      (let ((octets (babel:string-to-octets
+                                     ,',value-arg :encoding :utf-8)))
+                        (when ,max-length
+                          (assert (<= (1+ (length octets)) ,max-length)))
+                        (write-sequence octets
+                                        ,',source))
+                      (write-byte 0 ,',source))))
+
+               (zlib-data ()
+                 `(progn
+                    (align 8)
+                    (write-sequence
+                     (salza2:compress-data ,',value-arg 'salza2:zlib-compressor)
+                     ,',source)))
+               (rest-of-tag ()
+                 `(write-sequence ,',value-arg ,',source))
+               (bytes-left-in-tag ()
+                 `(progn (format t "called bytes-left-in-tag during write?")
+                         1))
+               (next-octet-zero-p ()
+                 `(progn (format t "called next-octet-zero-p during write?")
+                         t))
+              (next-bits-zero-p (bits)
+                (declare (ignore bits))
                 `(progn (format t "called next-octet-zero-p during write?")
                         t))
-)
+               )
 
-     ;; would it be evil to define symbol macros for all the readers here?
-     ,@body))
+      ;; would it be evil to define symbol macros for all the readers here?
+      ,@body)))

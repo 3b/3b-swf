@@ -8,13 +8,14 @@
 (define-swf-type state-move-to ()
   :this-var o
   :auto
-  ((bits (ub 5) :derived (min-bitfield-size-signed (delta-x o) (delta-y o)))
-   (delta-x (sb bits))
-   (delta-y (sb bits))))
+  ((bits (ub 5) :derived (min-bitfield-size-twips (delta-x o) (delta-y o)))
+   (delta-x (sb-twips bits) :initform 0)
+   (delta-y (sb-twips bits) :initform 0)))
 
 (define-swf-type shape-record ()
+  :this-var o
   :auto
-  ((type-flag (bit-flag))) ;; aligned?
+  ((type-flag (bit-flag) :derived (typep o 'edge-shape-record ))) ;; aligned?
   :subclass (if type-flag
                 'edge-shape-record
                 'style-change-or-end-shape-record))
@@ -42,8 +43,12 @@
    (fill-style-1 (ub *shape-fill-bits*) :optional (super state-fill-style-1))
 
    (line-style (ub *shape-line-bits*) :optional (super state-line-style))
-   (fill-styles (swf-type 'fill-style-array) :optional (super state-new-styles))
-   (line-styles (swf-type 'line-style-array) :optional (super state-new-styles))
+   ;; fixme: need to make this smarter so it creates the other style if
+   ;; only 1 is specified at creation time...
+   (fill-styles (swf-type 'fill-style-array) :initform nil
+                :optional (super state-new-styles))
+   (line-styles (swf-type 'line-style-array) :initform nil
+                :optional (super state-new-styles))
    (new-fill-bits (ub 4) :optional (super state-new-styles)
                   :extra (setf *shape-fill-bits* (or new-fill-bits
                                                      *shape-fill-bits*))
@@ -57,7 +62,7 @@
                              (integer-length (length (line-styles
                                                       (line-styles o))))))))
 
-(define-swf-type shape-end-record (style-change-or-end-shape-record)
+(define-swf-type shape-end-record (shape-record)
   :auto ((junk (align 8) :local t)))
 
 (define-swf-type edge-shape-record (shape-record)
@@ -72,36 +77,39 @@
   :this-var o
   :auto
   ((num-bits (ub 4) :derived (max 0
-                                  (- (min-bitfield-size-signed (delta-x o)
-                                                               (delta-y o)) 2)))
+                                  (- (min-bitfield-size-twips
+                                      (delta-x o)
+                                      (delta-y o)) 2)))
    (general-line (bit-flag) :derived (not (null (and (delta-x o) (delta-y o)))))
    (vertical-line (bit-flag) :optional (not general-line)
                   :derived (not (null (and (delta-y o) (not (delta-x o))))))
    ;; fixme: set these to 0 instead of nil when missing, and adjust the
    ;; flag derives accordingly
-   (delta-x (sb (+ 2 num-bits)) :optional (or general-line (not vertical-line)))
-   (delta-y (sb (+ 2 num-bits)) :optional (or general-line vertical-line))))
+   (delta-x (sb-twips (+ 2 num-bits)) :optional (or general-line (not vertical-line)))
+   (delta-y (sb-twips (+ 2 num-bits)) :optional (or general-line vertical-line))))
 
 (define-swf-type curved-edge-shape-record (edge-shape-record)
   :id 0
   :this-var o
   :auto
-  ((num-bits (ub 4) :derived (max 0 (- (min-bitfield-size-signed
+  ((num-bits (ub 4) :derived (max 0 (- (min-bitfield-size-twips
                                         (control-delta-x o)
                                         (control-delta-y o)
                                         (anchor-delta-x o)
                                         (anchor-delta-y o))
                                  2)))
-   (control-delta-x (sb (+ 2 num-bits)))
-   (control-delta-y (sb (+ 2 num-bits)))
-   (anchor-delta-x (sb (+ 2 num-bits)))
-   (anchor-delta-y (sb (+ 2 num-bits)))))
+   (control-delta-x (sb-twips (+ 2 num-bits)))
+   (control-delta-y (sb-twips (+ 2 num-bits)))
+   (anchor-delta-x (sb-twips (+ 2 num-bits)))
+   (anchor-delta-y (sb-twips (+ 2 num-bits)))))
+
 (defparameter *allow-short-shapes* nil
   "workaround for .swf files with empty shapes 1 byte apart in font tags")
+
 (define-swf-type shape ()
   :this-var o
   :auto
-  ((num-fill-bits (ub 4 :align 8)) ;; fixme: can we derive these?
+  ((num-fill-bits (ub 4)) ;; fixme: can we derive these?
    ;; :derived (reduce 'max (shape-records o) :key 'shape-min-fill-bits)
    (*shape-fill-bits* num-fill-bits :local t)
    (num-line-bits (ub 4)) ;; fixme: can we derive these?
@@ -119,17 +127,28 @@
 (define-swf-type shape-with-style ()
   :this-var o
   :auto
-  ((fill-styles (swf-type 'fill-style-array))
-   (line-styles (swf-type 'line-style-array))
+  ((fill-styles (swf-type 'fill-style-array)
+                :initform (make-instance 'fill-style-array 'fill-styles nil))
+   (line-styles (swf-type 'line-style-array)
+                :initform (make-instance 'line-style-array 'line-styles nil))
    (num-fill-bits (ub 4)
-                  :derive (integer-length (fill-style-count fill-styles)))
+                  :derived (integer-length (fill-style-count (fill-styles o))))
    (*shape-fill-bits* num-fill-bits :local t)
    (num-line-bits (ub 4)
-                  :derive (integer-length (line-style-count line-styles)))
+                  :derived (integer-length (line-style-count (line-styles o))))
    (*shape-line-bits* num-line-bits :local t)
-   (shape-records (list-until-type (swf-type 'shape-record) 'shape-end-record)))
-  :print-unreadably ("fillstyles:~s linestyles:~s ~s"
+   #+nil(shape-records (list-until-type (swf-type 'shape-record)
+                                   'shape-end-record
+                                   #+nil(lambda (x) (declare (ignore x))
+                                      (next-bits-zero-p 8))))
+   (shape-records (list-until (swf-type 'shape-record)
+                           (lambda (x) (declare (ignore x))
+                                   (next-bits-zero-p 6))))
+   (shape-record-end-marker (prog1 (ub 6)) :derived 0))
+  :align-after 8
+  :print-unreadably ("fillstyles:~s linestyles:~s bits=~s/~s ~s"
                      (fill-styles o) (line-styles o)
+                     (num-fill-bits o) (num-line-bits o)
                      (if *array-print-verbose*
                          (shape-records o)
                          (list 'length (length (shape-records o)))) ))

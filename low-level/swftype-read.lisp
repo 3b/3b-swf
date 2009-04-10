@@ -47,14 +47,21 @@
             (cdr *partial-octet-read*)))
   (unless (and *partial-octet-read*
                (zerop (mod (cdr *partial-octet-read*) 8)))
+    #+nil(when *partial-octet-read*
+      (format t "dropping bits <~s>~%" *partial-octet-read*))
     (setf *partial-octet-read* nil)))
 
 (defmethod read-bits (bits (stream stream))
-  (let ((value 0))
+  (let ((value 0)
+        (orig-count bits))
     (if *partial-octet-read*
         (if (>= (cdr *partial-octet-read*) bits)
             (progn ;; we have enough bits read already, use them
               (decf (cdr *partial-octet-read*) bits)
+              #+nil(format t "#read ~s bits = ~b <~s>~%" orig-count
+                (ldb (byte bits (cdr *partial-octet-read*))
+                     (car *partial-octet-read*))
+                *partial-octet-read*)
               (return-from read-bits
                 (ldb (byte bits (cdr *partial-octet-read*))
                      (car *partial-octet-read*))))
@@ -74,6 +81,7 @@
           (setf *partial-octet-read* (cons octet (- 8 bits)))
           (setf bits 0)
           until (zerop bits))
+    #+nil(format t "read ~s bits = ~b <~s>~%" orig-count value *partial-octet-read*)
     value))
 
 
@@ -167,6 +175,8 @@
                    (read-ub ,bits ,',source)))
               (sb (bits)
                 `(read-sb ,bits ,',source))
+              (sb-twips (bits)
+                `(/ (read-sb ,bits ,',source) 20.0))
               (fb (bits)
                 `(/ (read-sb ,bits ,',source) ,(expt 2.0 16)))
               ,@(loop for a in '(ui8 ui16 ui32 ui64 si8 si16 si32
@@ -213,6 +223,10 @@
                 `(loop repeat ,count
                        collect ,reader))
 
+              (enumerated-list (&rest types)
+                `(list
+                   ,@types))
+
               (string-sz-utf8 (&optional max-length)
                 (alexandria:once-only (max-length)
                   `(progn
@@ -256,6 +270,17 @@
                    (let ((a (ui8)))
                      (setf *partial-octet-read* (cons a 8))
                      (zerop a))))
+              (next-bits-zero-p (bits)
+                `(let ((a (ub ,bits)))
+                   (if *partial-octet-read*
+                       (progn
+                         (setf (car *partial-octet-read*)
+                               (dpb a
+                                    (byte ,bits (cdr *partial-octet-read*))
+                                    (car *partial-octet-read*)))
+                         (incf (cdr *partial-octet-read*) ,bits))
+                       (setf *partial-octet-read* (cons a ,bits)))
+                   (zerop a)))
 
               (bytes-left-in-tag ()
                 `(- (car *reader-end-of-block*) (file-position ,',source)))

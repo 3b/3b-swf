@@ -9,6 +9,9 @@
   ;; bound by a method specialized on t
   `(macrolet ((align (bits)
                 `(unless (zerop *swf-sizer-bitpos*)
+                   (format t "aligning ~s -> ~s ~%" *swf-sizer-bitpos*
+                           (* ,bits (1+ (truncate (1- *swf-sizer-bitpos*) ,bits)))
+)
                    (setf *swf-sizer-bitpos*
                          (* ,bits (1+ (truncate (1- *swf-sizer-bitpos*) ,bits)))))))
      (macrolet ((ub (bits &key align)
@@ -16,6 +19,8 @@
                      ,@(when align `((align ,align)))
                      (incf *swf-sizer-bitpos* ,bits)))
                 (sb (bits)
+                  `(incf *swf-sizer-bitpos* ,bits))
+                (sb-twips (bits)
                   `(incf *swf-sizer-bitpos* ,bits))
                 (fb (bits)
                   `(incf *swf-sizer-bitpos* ,bits))
@@ -35,17 +40,18 @@
                                               (twips-s16 2))
                         collect `(,name ()
                                         `(progn
-                                           (align 8)
-                                           (incf *swf-sizer-bitpos* ,',(* 8 bytes)))))
+                                           (when ,',value-arg
+                                               (align 8)
+                                               (incf *swf-sizer-bitpos* ,',(* 8 bytes))))))
                 (encodedu32 ()
                   `(error "encoded32 sizer not done yet..."))
                 (bit-flag (&key align)
                   `(progn
                      ,@(when align `((align ,align)))
-                     `(incf *swf-sizer-bitpos*)))
+                     (incf *swf-sizer-bitpos*)))
                 (swf-type (type)
                   (declare (ignore type))
-                  `(swf-part-size ,',value-arg))
+                  `(%swf-part-size ,',value-arg))
 
                 (sized-list (type size)
                   (declare (ignore size))
@@ -78,6 +84,11 @@
                            do (let ((,',value-arg ,i))
                                 ,type))))
 
+              (enumerated-list (&rest types)
+                `(progn
+                   ,@(loop for i in types
+                           collect `(let ((,',value-arg (pop ,',value-arg)))
+                                      ,i))))
 
                 (string-sz-utf8 (&optional max-length)
                   ;; fixme: probably need to ignore max-length here
@@ -107,6 +118,10 @@
                   `(progn (format t "called bytes-left-in-tag during size?")
                           1))
               (next-octet-zero-p ()
+                `(progn (format t "called next-octet-zero-p during size?")
+                        t))
+              (next-bits-zero-p (bits)
+                (declare (ignore bits))
                 `(progn (format t "called next-octet-zero-p during size?")
                         t))
                 )
@@ -173,7 +188,13 @@
   "calculate min bitfield size to store all of a set of signed values"
   ;; values are sign extended, so add 1 to allow space for sign bit
   (1+ (reduce 'max values :key (lambda (x)
-                                 (if x (integer-length x) 0)))))
+                                 (if x (integer-length (floor x)) 0)))))
+
+(defun min-bitfield-size-twips (&rest values)
+  "calculate min bitfield size to store all of a set of signed values"
+  ;; values are sign extended, so add 1 to allow space for sign bit
+  (1+ (reduce 'max values :key (lambda (x)
+                                 (if x (integer-length (floor (* 20 x))) 0)))))
 
 
 (defun min-bitfield-size-fixed16 (&rest values)
@@ -190,4 +211,9 @@
 (defun min-bitfield-size-unsigned (&rest values)
   "calculate min bitfield size to store all of a set of unsigned values"
   (reduce 'max values :key (lambda (x)
-                             (if x (integer-length x) 0))))
+                             (if x (integer-length (floor x)) 0))))
+
+
+
+
+

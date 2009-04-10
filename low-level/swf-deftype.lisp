@@ -36,7 +36,13 @@
 
 ;; make ver# suffixes consistent (foo-bar-2 vs. foo-bar2)
 
-;; add a list-until-next-byte-0 and simplify the structs that are
+;; add a list-until-next-byte-0 and simplify the structs that coud use that
+;;  (currently either depending on splitting out end record and ending
+;;    with typep, or list-until .. next-octet-zero-p)
+;;  first case probably can get simpler type hierarchy if it never has
+;;     to distinguish  end record
+;;  second case avoids the lambda, and the extra 0 byte slot in the
+;;    enlcosing record
 
 ;; flag to not print reserved fields?
 
@@ -44,9 +50,9 @@
 ;; add pull mode to chipz
 ;;   (with-input-from-compressed-stream (s 'chipz:zlib <input-stream>) ...) ?
 
+;; possibly should use unbound slots instead of nil for optional fields?
 
-
-
+;; pass current bit pos to swf-part-size instead of using global?
 
 
 
@@ -94,17 +100,20 @@
 ;;  (binding it internally doesn't work very well, since it depends on the
 ;;   state of the bitstream in the caller, since (align 8) takes up more space
 ;;   if the bitstream isn't aligned)
-(defgeneric %swf-part-size (part)
+(defgeneric %swf-part-size (part &key body-only &allow-other-keys)
   (:method-combination swf-part :most-specific-last)
   (:documentation "calculate size of a swf-part in bits"))
 
-(defmethod %swf-part-size swf-part (part)
-  (when (next-method-p) (call-next-method part)))
+(defmethod %swf-part-size swf-part (part &rest keys &key)
+  (when (next-method-p) (apply #'call-next-method part keys)))
 
-(defun swf-part-size (part)
-  (let ((*swf-sizer-bitpos* 0))
-    (%swf-part-size part)
-    *swf-sizer-bitpos*))
+(defun swf-part-size (part &key align body-only)
+  (with-swf-sizers (vvvv)
+      (let ((*swf-sizer-bitpos* 0)
+            (vvvv nil))
+        (%swf-part-size part :body-only body-only)
+        (when align (align align))
+        *swf-sizer-bitpos*)))
 
 (defgeneric write-swf-part (part stream)
   (:method-combination swf-part :most-specific-last)
@@ -117,6 +126,7 @@
                            this-var value-var
                            subclass
                            swf-min-version ;; not used yet
+                           align-after
                            id)
   (declare (ignore keys swf-min-version))
   ;; :auto looks like (foo (do stuff) :local . :derived .)
@@ -180,6 +190,9 @@
   ;;       subclass-from-id ((p (eql ',parent)) (id (eql ',id))
   ;;     to be used for mapping classes to/from enumerated values in file
   ;;
+  ;;  :align-after, if set, aligns source to specified # of bits after
+  ;;     read/write/size
+  ;;
   ;; (might drop the &key for auto at some point, if it ends up applying to
   ;;  most types?)
   ;;
@@ -194,7 +207,8 @@
         (this-var (or this-var (gensym "THIS-")))
         (value-arg (or value-var (gensym))))
     (multiple-value-bind (read-forms size-forms write-forms
-                                     derived-forms)
+                                     derived-forms
+                                     slot-options)
         (loop for (name form . options) in auto
               for local = (getf options :local)
               for derived = (getf options :derived)
@@ -209,158 +223,199 @@
               collect `(,name ,(or read-override form) ,@options) into read
               collect `(,name ,(or size-override form) ,@options) into size
               collect `(,name ,(or write-override form) ,@options) into write
+              collect `(,name ,@options) into slot-options
               when derived
               collect (list name derived) into derived-forms
               ;;when extra
               ;;collect (list name extra) into extra-forms
               finally (return (values read size write derived-forms
+                                      slot-options
                                       #+nil extra-forms)))
       (setf real-slots (nreverse real-slots))
       (setf all-slots (nreverse all-slots))
-      (alexandria:with-gensyms (source type sub-type initargs)
-          `(progn
-          ;; define class
-          (defclass ,class-name ,supers
-            ,(loop for slot-name in real-slots
-                   collect `(,slot-name :initarg ,slot-name :accessor ,slot-name)))
-          ;; define accessors for derived slots
-          ,@ (loop for (slot-name form) in derived-forms
-                   collect `(defmethod ,slot-name ((,this-var ,class-name))
-                              ,form))
-          ;; define reader
-          (defmethod read-swf-part ((,type (eql ',class-name)) ,source &rest ,initargs)
-            (with-swf-readers (,source)
-              (macrolet ((super (slot)
-                           `(getf ,',initargs ',slot)))
-                , (labels ((make-bindings (forms instance-form)
-                             (if forms
-                                 (destructuring-bind
-                                       (name form &key extra optional
-                                             &allow-other-keys)
-                                     (car forms)
-                                   `(let ((,name ,@(if optional
-                                                       `((when ,optional ,form))
-                                                       `(,form))))
-                                      (declare (ignorable ,name))
-                                      ,@(when extra (list extra))
-                                      ,(make-bindings (cdr forms) instance-form)))
-                                 instance-form)))
-                    (make-bindings
-                     read-forms
-                     (let ((m-i `(apply
-                                  'make-instance
-                                  ',class-name
-                                  :allow-other-keys t
-                                  ,@(loop for i in real-slots
-                                          collect `',i
-                                          collect i)
-                                  ,initargs)))
-                       (if subclass
-                           `(let ((,sub-type ,subclass))
-                              (cond
-                                ((or (not ,sub-type)
-                                     (eq ,sub-type ',class-name))
-                                 ,m-i)
-                                (t
-                                 (apply 'read-swf-part
-                                        ,sub-type
-                                        ,source
-                                        ,@(loop for i in all-slots
-                                                collect `',i
-                                                collect i)
-                                        ,initargs))))
-                           m-i)))))))
-          ;; define sizer
-          (defmethod %swf-part-size swf-part ((,this-var ,class-name))
-            (with-swf-sizers (,value-arg)
-              (macrolet ((super (slot)
-                           `(,slot ,',this-var)))
-               ,@ (labels ((make-bindings (forms body-forms)
-                             (if forms
-                                 ;; fixme: probably shouldn't bind all
-                                 ;; these slots not sure if limiting to
-                                 ;; derived + local is enough or not...
-                                 (let ((name (caar forms))
-                                       (local (getf (cddar forms) :local)))
-                                   (if local
-                                       `((let ((,name ,(cadar forms)))
-                                           (declare (ignorable ,name))
-                                           ,@(make-bindings (cdr forms)
-                                                            body-forms)))
-                                       `((let ((,name (,name ,this-var)))
-                                           (declare (ignorable ,name))
-                                           ,@(make-bindings (cdr forms)
-                                                            body-forms)))))
-                                 body-forms)))
-                    (make-bindings
-                     size-forms
-                     (loop for (name form . options) in size-forms
-                           when (and (consp form) (eq (car form) 'swf-type))
-                           do (setf form `(swf-type ,name))
-                           if (destructuring-bind (&key optional local
-                                                        &allow-other-keys)
-                                  options
-                                (unless local
-                                  `(symbol-macrolet ((,value-arg ,name))
-                                     ,(if optional
-                                          `(when ,optional ,form)
-                                          form))))
-                           collect it))))))
-          ;; define writer
-          (defmethod write-swf-part swf-part ((,this-var ,class-name) ,source)
-            (with-swf-writers (,source ,value-arg)
-              (macrolet ((super (slot)
-                           `(,slot ,',this-var)))
-                ,@ (labels ((make-bindings (forms body-forms)
+      (format t "real=~s~%all=~s~%derive=~s~%" real-slots
+              all-slots derived-forms)
+      (alexandria:with-gensyms (source type sub-type initargs rest-var)
+        `(progn
+           ;; define class
+           (defclass ,class-name ,supers
+             ,(loop for slot-name in real-slots
+                    for options = (cdr (assoc slot-name slot-options))
+                    ;;do (format t "optiona=~s~%" options)
+                    collect `(,slot-name :initarg ,slot-name
+                                         :accessor ,slot-name
+                                         ,@(if (get-properties options '(:initform))
+                                               `(:initform
+                                                 ,(getf options :initform))
+                                               (if (getf options :optional)
+                                                   `(:initform nil))))))
+           ;; define accessors for derived slots
+           ,@ (loop for (slot-name form) in derived-forms
+                    collect `(defmethod ,slot-name ((,this-var ,class-name))
+                               ,form))
+              ;; define reader
+           (defmethod read-swf-part ((,type (eql ',class-name)) ,source &rest ,initargs)
+             (with-swf-readers (,source)
+               (macrolet ((super (slot)
+                            `(getf ,',initargs ',slot)))
+                 , (labels ((make-bindings (forms instance-form)
                               (if forms
-                                  ;; fixme: probably shouldn't bind all
-                                  ;; these slots not sure if limiting to
-                                  ;; derived + local is enough or not...
-                                  (let ((name (caar forms))
-                                        (local (getf (cddar forms) :local)))
-                                    (if local
-                                        `((let ((,name ,(cadar forms)))
-                                            ,@(make-bindings (cdr forms) body-forms)))
-                                        `((let ((,name (,name ,this-var)))
-                                            ,@(make-bindings (cdr forms) body-forms)))))
-                                  body-forms)))
+                                  (destructuring-bind
+                                        (name form &key extra optional
+                                              &allow-other-keys)
+                                      (car forms)
+                                    `(let ((,name ,@(if optional
+                                                        `((when ,optional ,form))
+                                                        `(,form))))
+                                       (declare (ignorable ,name))
+                                       ,@(when extra (list extra))
+                                       ,(make-bindings (cdr forms) instance-form)))
+                                  instance-form)))
                      (make-bindings
-                      write-forms
-                      (loop for (name form . options) in write-forms
-                            if (destructuring-bind (&key optional local
-                                                         &allow-other-keys)
-                                   options
-                                 (unless local
-                                   `(symbol-macrolet ((,value-arg ,name))
-                                      ,(if optional
-                                           `(when ,optional ,form)
-                                           form))))
-                            collect it))))))
-          ;; define ID mapping methods if needed
-          ,@ (when id
-               (let ((p (if (consp id) (car id) (car supers)))
-                     (id (if (consp id) (second id) id)))
-                 (assert p (p) "missing class name for subclass :id clause")
-                 ;; might be worth keeping NIL as valid id, for things
-                 ;; that are selected by a bit-flag... just using
-                 ;; (ub 1) and 0/1 for now though
-                 (assert id (id) "missing id for subclass :id clause")
-                 `((defmethod subclass-id ((object ,class-name)
-                                           (p (eql ',p)))
-                     ,id)
-                   (defmethod subclass-from-id ((p (eql ',p))
-                                                (id (eql ',id)))
-                     ',class-name))))
-          ;; define printer
-          ,@ (when print-unreadably
-               `((defmethod print-object ((,this-var ,class-name) ,source)
-                   (print-unreadable-object (,this-var ,source
-                                             :type ',class-name
-                                             :identity nil)
-                     ,@(if (eq print-unreadably :auto)
-                           `((format ,source "~{~s:~s~#[~:; ~:_~]~}"
-                                     (list ,@(loop for i in all-slots
-                                                   collect `',i
-                                                   collect `(,i ,this-var)))))
-                           `((format ,source ,(car print-unreadably)
-                                     ,@(cdr print-unreadably)))))))))))))
+                      read-forms
+                      (let ((m-i `(apply
+                                   'make-instance
+                                   ',class-name
+                                   :allow-other-keys t
+                                   ,@(loop for i in real-slots
+                                           collect `',i
+                                           collect i)
+                                   ,initargs)))
+                        (if subclass
+                            `(let ((,sub-type ,subclass))
+                               (cond
+                                 ((or (not ,sub-type)
+                                      (eq ,sub-type ',class-name))
+                                  ,m-i)
+                                 (t
+                                  (apply 'read-swf-part
+                                         ,sub-type
+                                         ,source
+                                         ,@(loop for i in all-slots
+                                                 collect `',i
+                                                 collect i)
+                                         ,initargs))))
+                            m-i))))
+                   ,@ (when align-after `((align ,align-after))))))
+           ;; define sizer
+           (defmethod %swf-part-size swf-part ((,this-var ,class-name) &rest ,rest-var &key)
+             (with-swf-sizers (,value-arg)
+               (macrolet ((super (slot)
+                            `(,slot ,',this-var)))
+                 ,@ (labels
+                        ((make-bindings (forms body-forms)
+                           (if forms
+                               ;; fixme: probably shouldn't bind all
+                               ;; these slots not sure if limiting to
+                               ;; derived + local is enough or not...
+                              (destructuring-bind (name form &key local extra derived optional &allow-other-keys)
+                                  (car forms)
+                                (if local
+                                    `((let ((,name ,form))
+                                        (declare (ignorable ,name))
+                                        ,@(when extra (list extra))
+                                        ,@(make-bindings (cdr forms)
+                                                         body-forms)))
+                                    `((let ((,name
+                                             ,(if derived
+                                                  `(,name ,this-var)
+                                                  `(if (slot-boundp
+                                                        ,this-var ',name)
+                                                       (,name ,this-var)
+                                                       nil))))
+                                        (declare (ignorable ,name))
+                                        ,@(when extra (list extra))
+                                        (symbol-macrolet ((,value-arg ,name))
+                                          ,(if optional
+                                               `(when ,optional ,form)
+                                               form))
+                                        ,@(make-bindings (cdr forms)
+                                                         body-forms)))))
+                              body-forms)))
+                      (make-bindings
+                       size-forms
+                       `((when (next-method-p)
+                             (apply #'call-next-method ,this-var ,rest-var))))))
+               ,@ (when align-after `((align ,align-after)))))
+           ;; define writer
+           (defmethod write-swf-part swf-part ((,this-var ,class-name) ,source)
+             (with-swf-writers (,source ,value-arg)
+               (macrolet ((super (slot)
+                            `(,slot ,',this-var)))
+                 ,@ (labels ((make-bindings (forms body-forms)
+                               (if forms
+                                   ;; fixme: probably shouldn't bind all
+                                   ;; these slots not sure if limiting to
+                                   ;; derived + local is enough or not...
+                                   ;; fixme: factor out common stuff between write/size
+
+
+                                   ;; need to write slots right after
+                                   ;; they are bound so later slots
+                                   ;; can modify specials that earlier
+                                   ;; specials might want to see the
+                                   ;; old value of
+                                   ;; (specifically style-change-shape-record)
+                                   ;; fixme: find a better way to do this?
+
+                                   (destructuring-bind (name form &key local extra derived optional &allow-other-keys)
+                                       (car forms)
+                                     (if local
+                                         `((let ((,name ,form))
+                                             ,@(when extra (list extra))
+                                             ,@(make-bindings (cdr forms) body-forms)))
+                                         `((let ((,name
+                                                  ,(if derived
+                                                       `(,name ,this-var)
+                                                       `(if (slot-boundp
+                                                             ,this-var ',name)
+                                                            (,name ,this-var)
+                                                            nil))))
+                                             ,@(when extra (list extra))
+                                             (symbol-macrolet ((,value-arg ,name))
+                                               ,(if optional
+                                                    `(when ,optional ,form)
+                                                    form))
+                                             ,@(make-bindings (cdr forms) body-forms)))))
+                                   body-forms)))
+
+                      (make-bindings
+                       write-forms
+                       `((when (next-method-p)
+                              (call-next-method ,this-var ,source))))))
+               ,@ (when align-after `((align ,align-after)))))
+           ;; define ID mapping methods if needed
+           ,@ (when id
+                (let ((p (if (consp id) (car id) (car supers)))
+                      (id (if (consp id) (second id) id)))
+                  (assert p (p) "missing class name for subclass :id clause")
+                  ;; might be worth keeping NIL as valid id, for things
+                  ;; that are selected by a bit-flag... just using
+                  ;; (ub 1) and 0/1 for now though
+                  (assert id (id) "missing id for subclass :id clause")
+                  `((defmethod subclass-id ((object ,class-name)
+                                            (p (eql ',p)))
+                      ,id)
+                    (defmethod subclass-from-id ((p (eql ',p))
+                                                 (id (eql ',id)))
+                      ',class-name))))
+              ;; define printer
+           ,@ (when print-unreadably
+                `((defmethod print-object ((,this-var ,class-name) ,source)
+                    (print-unreadable-object (,this-var ,source
+                                              :type ',class-name
+                                              :identity nil)
+                      ,@(if (eq print-unreadably :auto)
+                            `((format ,source "~{~s:~s~#[~:; ~:_~]~}"
+                                      (list ,@(loop for i in all-slots
+                                                    collect `',i
+                                                    if (find i real-slots)
+                                                    collect
+                                                    `(if (slot-boundp ,this-var
+                                                                      ',i)
+                                                         (,i ,this-var)
+                                                         :unbound)
+                                                    else
+                                                    collect `(,i ,this-var)))))
+                            `((format ,source ,(car print-unreadably)
+                                      ,@(cdr print-unreadably)))))))))))))

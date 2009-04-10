@@ -16,23 +16,27 @@
 
 (define-swf-type rect ()
   :auto ((nbits (ub 5 :align 8)
-                :derived (min-bitfield-size-signed (xmin o) (xmax o)
+                :derived (min-bitfield-size-twips (xmin o) (xmax o)
                                                    (ymin o) (ymax o)))
-         (xmin (sb nbits))
-         (xmax (sb nbits))
-         (ymin (sb nbits))
-         (ymax (sb nbits))
-         (junk (align 8) :local t))
+         (xmin (sb-twips nbits))
+         (xmax (sb-twips nbits))
+         (ymin (sb-twips nbits))
+         (ymax (sb-twips nbits)))
+  :align-after 8
   :this-var o
   :print-unreadably ("(~s,~s) (~s,~s)" (xmin o) (ymin o) (xmax o) (ymax o)))
 
  ;; should these store a single u32 instead?
 (define-swf-type rgb ()
-  :auto ((r (ui8)) (g (ui8)) (b (ui8))))
+  :auto ((r (ui8) :initform 255) (g (ui8) :initform 0) (b (ui8) :initform 128)))
 
 
 (define-swf-type rgba ()
-  :auto ((r (ui8)) (g (ui8)) (b (ui8)) (a (ui8))))
+  :auto ((r (ui8) :initform 255)
+         (g (ui8) :initform 0)
+         (b (ui8) :initform 128)
+         (a (ui8) :initform 255))
+)
 
 (define-swf-type argb ()
   :auto ((a (ui8)) (r (ui8)) (g (ui8)) (b (ui8))))
@@ -40,15 +44,17 @@
 ;;; matrix
 
 (define-swf-type matrix-part-fixed ()
-  :auto ((nbits (ub 5))
+  :auto ((nbits (ub 5) :derived (min-bitfield-size-fixed16
+                                 (value1 o) (value2 o)))
          (value1 (fb nbits))
          (value2 (fb nbits)))
   :this-var o
   :print-unreadably ("(~s,~s)" (value1 o) (value2 o)))
 (define-swf-type matrix-part-translate ()
-  :auto ((nbits (ub 5))
-         (value1 (ub nbits))
-         (value2 (ub nbits)))
+  :auto ((nbits (ub 5) :derived (min-bitfield-size-twips
+                                 (value1 o) (value2 o)))
+         (value1 (sb-twips nbits))
+         (value2 (sb-twips nbits)))
   :this-var o
   :print-unreadably ("(~s,~s)" (value1 o) (value2 o)))
 
@@ -146,6 +152,7 @@
   :auto
   ((fill-style-count () :derived (length (fill-styles o)))
    (fill-styles (counted-list (swf-type 'fill-style) fill-style-count)))
+;  :align-after 8
   :reader ((fill-style-count
             (let ((short (ui8)))
               (if (and (<= 2 *shape-tag-version* 3) (= short #xff))
@@ -166,6 +173,8 @@
                 (ui8))))
   :print-unreadably ("~{~s~#[~:; ~:_~]~}" (if *array-print-verbose* (fill-styles o) (list 'length (length (fill-styles o)))) ))
 
+(defmethod fill-style-count ((a null))
+  0)
 
 ;; fixme: we should probably handle this in some way that allows validation
 ;; on size/write, either splitting the containing classes into versions
@@ -231,8 +240,10 @@
    (line-styles (counted-list (swf-type (if (= *shape-tag-version* 4)
                                             'line-style-2
                                             'line-style))
-                              line-style-count))
-   (junk (align 8) :local t))
+                              line-style-count)
+                :extra (format t "line-styles, count=~s l-s-count=~s ver=~s~%~s~%"
+                               (length line-styles) line-style-count *shape-tag-version* line-styles)))
+;;  :align-after 8
   :reader ((line-style-count
             (let ((short (ui8)))
               (if (= short #xff)
@@ -252,6 +263,8 @@
                 (ui8))))
   :print-unreadably ("~{~s~#[~:; ~:_~]~}" (if *array-print-verbose* (line-styles o) (list 'length (length (line-styles o)))) ))
 
+(defmethod line-style-count ((a null))
+  0)
 
 (define-swf-type line-style ()
   :auto
@@ -261,7 +274,7 @@
 (define-swf-type line-style-2 ()
   :this-var o
   :auto
-  ((width (ui16))
+  ((width (twips-u16))
    (start-cap-style (ub 2))
    (join-style (ub 2))
    ;; fixme: make sure we don't have color and fill set at once
@@ -269,10 +282,11 @@
    (no-h-scale (bit-flag))
    (no-v-scale (bit-flag))
    (pixel-hinting-flag (bit-flag))
-   (reserved (ub 5))
+   (reserved (ub 5) :initform 0)
    (no-close (bit-flag))
    (end-cap-style (ub 2))
-   (miter-limit-factor (ui16) :optional (= 2 join-style))
+   ;; fixme: decide good default for miter-limit-factor?
+   (miter-limit-factor (fixed8) :initform 10.0 :optional (= 2 join-style))
    (color (swf-type 'rgba) :optional (not has-fill))
    (fill-type (swf-type 'fill-style) :optional has-fill)))
 

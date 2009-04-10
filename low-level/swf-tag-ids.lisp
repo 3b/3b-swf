@@ -1,5 +1,9 @@
 (in-package :3b-swf)
+;; todo: define the rest of these (adding as needed for now)
 (defconstant +swf-end-tag+ 0)
+(defconstant +metadata-tag+ 77)
+
+;; mapping from id -> name
 (defparameter *tag-id-plist*
   '(0  end-tag
     1  show-frame-tag
