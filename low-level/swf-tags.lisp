@@ -45,7 +45,6 @@
                            (lambda (x) (typep))))
    (actions (list-until-type (swf-type 'action-record) 'action-record-end))))
 
-#+untested
 (define-swf-type jpeg-tables (swf-tag)
   :id 8
   :auto
@@ -89,7 +88,6 @@
   :id 12
   :auto ((actions (list-until-type (swf-type 'action-record) 'action-record-end))))
 
-#+untested
 (define-swf-type define-font-info-tag (swf-tag)
   :id 13
   :this-var o
@@ -147,7 +145,7 @@
 (define-swf-type sound-stream-head (swf-tag)
   :id 18
   :auto
-  ((reserved (ub 4))
+  ((reserved (ub 4 :align 8))
    (playback-sound-rate (ub 2))
    (playback-16-bit (bit-flag)) ;; playback-sound-size
    (playback-stereo (bit-flag)) ;; playback-sound-type
@@ -156,7 +154,10 @@
    (stream-16-bit (bit-flag)) ;; stream-sound-size
    (stream-stereo (bit-flag)) ;; stream-sound-type
    (stream-sound-sample-count (ui16))
-   (latency-seek (si16) :optional (= stream-sound-compression 2))))
+   (latency-seek (si16)
+                 :optional (and (= stream-sound-compression 2)
+                                ;; work around buggy files (or buggy spec?)...
+                                (not (zerop (bytes-left-in-tag)))))))
 
 (define-swf-type sound-stream-block (swf-tag)
   :id 19
@@ -300,7 +301,11 @@
    (html (bit-flag))
    (use-outline (bit-flag))
    (font-id (ui16) :optional has-font)
-   (font-class (string-sz-utf8) :optional has-font-class)
+   (font-class (if (< *swf-version* 6)
+                   ;; fixme: is this correct for all v4-5 .swf?
+                   (list-until (ui8) (lambda (x) (declare (ignore x))
+                                             (next-octet-zero-p)))
+                   (string-sz-utf8)) :optional has-font-class)
    (font-height (ui16) :optional (or has-font has-font-class))
    (text-color (swf-type 'rgba) :optional has-text-color )
    (max-length (ui16) :optional has-max-length )
@@ -428,10 +433,10 @@
    (asset-count (ui16))
    (assets (counted-list (enumerated-list (ui16) (string-sz-utf8)) asset-count))))
 
-#+untested
-(define-swf-type enable-debugger (swf-tag)
+(define-swf-type enable-debugger-tag (swf-tag)
   :id 58
-  :auto ((password (string-sz-utf8))))
+  :auto ((password (string-sz-utf8))
+         (extra-octets (rest-of-tag))))
 
 (define-swf-type do-init-action-tag (swf-tag)
   :id 59
@@ -527,9 +532,7 @@
    (has-filter-list (bit-flag) :derived (not (null (surface-filter-list o))))
    (depth (ui16))
    ;; is the logic for this right?
-   (class-name (string-sz-utf8) :optional (or has-class-name
-                                              (and has-image
-                                                   has-character)))
+   (class-name (string-sz-utf8) :optional  has-class-name)
    (character-id (ui16) :optional has-character)
    (matrix (swf-type 'matrix) :optional has-matrix)
    (color-transform (swf-type 'cxform-with-alpha) :optional has-color-transform)

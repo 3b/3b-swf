@@ -69,3 +69,18 @@
     89 start-sound-2-tag
     90 define-bits-jpeg-4-tag
     91 define-font-4-tag))
+
+(defparameter *bogus-tag-ids*
+  '((777 swf-tools-777-tag) ;; ~4 bytes, unknown?
+    (255 unknown-encryptor-255-tag) ;; 0 bytes, unknown
+    (253 unknown-encryptor-253-tag) ;; x bytes, code?
+    ))
+(defparameter *blob-tags* nil)
+
+;; unknown-encryptor1:
+;;   tag255 = 1 byte
+;;   tag253 = x bytes, code with entry point as jump in last instr?
+;;   do-action-tag(12) = extra bytes at end?
+;;   bad utf8 in constant pools
+;;   bad action records
+;;   define-font-3 extra junk at end?

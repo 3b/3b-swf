@@ -361,17 +361,3 @@
    (scene-bias-flag (bit-flag))
    (play-flag (bit-flag))
    (scene-bias (ui16) :optional scene-bias-flag)))
-
-
-
-
-
-
-
-
-
-
-
-
-
-

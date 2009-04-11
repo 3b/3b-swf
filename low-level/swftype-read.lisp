@@ -242,7 +242,8 @@
                            do (vector-push-extend octet octets
                                                   (* 2 (length octets)))
                            finally (return (babel:octets-to-string
-                                            octets :encoding :utf-8))))))
+                                            octets :encoding :utf-8
+                                            :errorp nil))))))
               (zlib-data ()
                 `(progn
                    (align 8)

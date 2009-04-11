@@ -9,7 +9,8 @@
            (w (ui8))
            (s (ui8))
            (*swf-version* (ui8))
-           (size (ui32)))
+           (size (ui32))
+           (*blob-tags* *blob-tags*))
       (declare (ignorable size))
       (format t "siz=~s~%" size)
       ;; check signature ;; fixme: handle error properly
@@ -28,19 +29,29 @@
   ;; default to reading tag as a blob if no more specific reader is available
   'swf-blob-tag)
 
+(defparameter *read-blobs* nil)
 (defmethod read-swf-part ((type (eql 'swf-tag)) source &rest initargs)
   (with-swf-readers (source)
     (multiple-value-bind (tag size) (read-tag&size source)
       (with-reader-block size
-        (unless (or (= tag 777) ;; swftools junk
+        (unless (or (= tag 777)  ;; swftools junk
+                    (= tag 255)  ;; unknown junk?
+                    (= tag 253)  ;; unknown junk?
                     (getf *tag-id-plist* tag))
-            (error "bad tag ~s~%" tag))
+          (error "bad tag ~s~%" tag))
+        (when (member tag '(255 253))
+          ;; don't try to decode everything in encrypted files...
+          (setf *blob-tags* (nconc (list 12 34 255 253) *blob-tags*)))
         (when *trace-tags* (format t "--read tag ~s~%" (getf *tag-id-plist* tag)))
         (if (member tag *trace-tags*)
             (trace read-swf-part)
             (when *trace-tags* (untrace read-swf-part)))
         (prog1
-            (apply 'read-swf-part (subclass-from-id 'swf-tag tag) source :tag tag initargs)
+            (if (or *read-blobs* (member tag *blob-tags*))
+                (apply 'read-swf-part (if (zerop tag) 'swf-end-tag
+                                          'swf-blob-tag)
+                       source :tag tag initargs)
+                (apply 'read-swf-part (subclass-from-id 'swf-tag tag) source :tag tag initargs))
           (if (member tag *trace-tags*) (untrace read-swf-part))
           (when *trace-tags* (format t "<<done tag ~s left=~s~%" (getf *tag-id-plist* tag) (bytes-left-in-tag)))
           ;; adjust for buggy files (and reader bugs) by always skipping to
@@ -70,7 +81,7 @@
   ((blob (rest-of-tag)
          :extra (progn
                   (incf *blobs*)
-                  (format t "read blob tag :~%;; ~s (~s)~%" (getf *tag-id-plist* (super :tag)) (super :tag)))))
+                  (format t "read blob tag :~%;; ~s (~s) = ~s bytes~%" (getf *tag-id-plist* (super :tag)) (super :tag) (length blob)))))
   :print-unreadably ("tag:~d blob:~d bytes" (or (getf *tag-id-plist* (tag o))
                                                 (tag o)) (length (blob o))))
 

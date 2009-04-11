@@ -240,9 +240,7 @@
    (line-styles (counted-list (swf-type (if (= *shape-tag-version* 4)
                                             'line-style-2
                                             'line-style))
-                              line-style-count)
-                :extra (format t "line-styles, count=~s l-s-count=~s ver=~s~%~s~%"
-                               (length line-styles) line-style-count *shape-tag-version* line-styles)))
+                              line-style-count)))
 ;;  :align-after 8
   :reader ((line-style-count
             (let ((short (ui8)))
