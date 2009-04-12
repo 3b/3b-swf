@@ -196,6 +196,7 @@
     )))
 
 (defun write-test-swf (stream frame-label symbol-classes &key pngs)
+  (declare (ignorable symbol-classes pngs))
   (write-swf
    stream
    (append
@@ -498,7 +499,7 @@
       (nreverse tags))
 
     #+nil
-    (loop repeat 20 
+    (loop repeat 20
           for i = 1 then (* i 1.25)
           collect (let ((vecto::*curve-tolerance* i))
                     (vecto::curve-test2 (+ i 234)))
@@ -681,3 +682,38 @@
            s))))
 
 )  (read-swf-part 'swf-tag is))
+
+
+#+nil
+
+(with-open-file (s "/tmp/new-write.swf" :direction :output :element-type '(unsigned-byte 8) :if-exists :supersede)
+  (write-swf
+   s
+   (append
+    (list
+     (make-instance 'set-background-color-tag
+                    'background-color (rgb #x505080))
+
+     (make-instance 'frame-label-tag
+                    'name "foo"))
+
+
+    (list
+     ;;(vecto::center-test "foo " 123)
+     ;;(vecto::twittertext "foo " 20 "c:/windows/fonts/arial.ttf" 123)
+     ;;(vecto::circle-test  123)
+     ;;(vecto::text-test :string "foo " :size 150 :font "c:/windows/fonts/arial.ttf" :file 123)
+     ;;(vecto::sign-test "foo " "c:/windows/fonts/arial.ttf" 123)
+
+     (vecto::radiant-lambda  123)
+     (place-object-2 123 123 15 15 :sx 1.0 :sy 1.0)
+     (vecto::feedlike-icon 124)
+     (place-object-2 124 124 120 15 :sx 1.0 :sy 1.0)
+     (vecto::line-styletest 125)
+     (place-object-2 125 125 15 120 :sx 1.0 :sy 1.0)
+     (make-instance 'swf-show-frame-tag)))
+   :x-twips 250.0
+   :y-twips 250.0
+   :frame-rate 10
+   :flash-version 10)
+)

@@ -64,7 +64,9 @@
    (scale (swf-type 'matrix-part-fixed) :optional has-scale)
    (has-rotate (bit-flag) :derived (not (null (rotate-skew o))))
    (rotate-skew (swf-type 'matrix-part-fixed) :optional has-rotate)
-   (translate (swf-type 'matrix-part-translate)))
+   (translate (swf-type 'matrix-part-translate)
+              :initform (make-instance 'matrix-part-translate
+                                       'value1 0 'value2 0)))
   :this-var o)
 
 ;;; color transform
