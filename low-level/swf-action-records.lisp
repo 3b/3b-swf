@@ -239,9 +239,7 @@
 (define-swf-type action-define-function-2 (action-record-long)
   :id #x8e
   :auto
-  ((function-name (string-sz-utf8)
-                  :extra (unless (string= function-name "")
-                           (format t "define-function2 = ~s~%" function-name)))
+  ((function-name (string-sz-utf8))
    (num-params (ui16))
    (register-count (ui8))
    (preload-parent (bit-flag))
@@ -297,10 +295,7 @@
 (define-swf-type action-push-value ()
   :this-var o
   :auto
-  ((push-type (ui8) :derived (subclass-id o 'action-push-value)
-         #+nil #+nil     :extra (format t "push ~s ~s~%"
-                             (subclass-from-id 'action-push-value push-type)
-                             push-type)))
+  ((push-type (ui8) :derived (subclass-id o 'action-push-value)))
   :subclass (subclass-from-id 'action-push-value push-type))
 
 (define-swf-type action-push-string (action-push-value)

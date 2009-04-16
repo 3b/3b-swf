@@ -9,9 +9,6 @@
   ;; bound by a method specialized on t
   `(macrolet ((align (bits)
                 `(unless (zerop *swf-sizer-bitpos*)
-                   (format t "aligning ~s -> ~s ~%" *swf-sizer-bitpos*
-                           (* ,bits (1+ (truncate (1- *swf-sizer-bitpos*) ,bits)))
-)
                    (setf *swf-sizer-bitpos*
                          (* ,bits (1+ (truncate (1- *swf-sizer-bitpos*) ,bits)))))))
      (macrolet ((ub (bits &key align)

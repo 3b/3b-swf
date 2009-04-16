@@ -39,7 +39,6 @@
              (not (zerop (mod (cdr *partial-octet-read*) 8)))
              (not (zerop (ldb (byte (cdr *partial-octet-read*) 0)
                               (car *partial-octet-read*)))))
-    ;;(break "--- discarding bits")
     (format t "--- discarding bits ~b (~x . ~s)~%"
             (ldb (byte (cdr *partial-octet-read*) 0)
                  (car *partial-octet-read*))
@@ -47,8 +46,6 @@
             (cdr *partial-octet-read*)))
   (unless (and *partial-octet-read*
                (zerop (mod (cdr *partial-octet-read*) 8)))
-    #+nil(when *partial-octet-read*
-      (format t "dropping bits <~s>~%" *partial-octet-read*))
     (setf *partial-octet-read* nil)))
 
 (defmethod read-bits (bits (stream stream))
@@ -58,10 +55,6 @@
         (if (>= (cdr *partial-octet-read*) bits)
             (progn ;; we have enough bits read already, use them
               (decf (cdr *partial-octet-read*) bits)
-              #+nil(format t "#read ~s bits = ~b <~s>~%" orig-count
-                (ldb (byte bits (cdr *partial-octet-read*))
-                     (car *partial-octet-read*))
-                *partial-octet-read*)
               (return-from read-bits
                 (ldb (byte bits (cdr *partial-octet-read*))
                      (car *partial-octet-read*))))
@@ -81,7 +74,6 @@
           (setf *partial-octet-read* (cons octet (- 8 bits)))
           (setf bits 0)
           until (zerop bits))
-    #+nil(format t "read ~s bits = ~b <~s>~%" orig-count value *partial-octet-read*)
     value))
 
 

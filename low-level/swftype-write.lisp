@@ -8,13 +8,9 @@
 
 (defun finish-partial-write (stream)
   (when (and *partial-octet-write* (not (zerop (cdr *partial-octet-write*))))
-    #+nil(format t "--flushing leftover ~s bits = ~b~%" (cdr *partial-octet-write*) (car *partial-octet-write*))
     (write-byte (ash (car *partial-octet-write*)
                           (- 8 (cdr *partial-octet-write*)))
-                     stream)
-
-    #+nil(format t "-- wrote ~b~%~%" (ash (car *partial-octet-write*)
-                                     (- 8 (cdr *partial-octet-write*)))))
+                     stream))
   (setf *partial-octet-write* nil))
 
 (defmethod write-octet (datum (stream stream))
@@ -35,15 +31,12 @@
 ;;  looks more like write-byte... going with first for now)
 (defmethod write-bits (data count (stream stream))
   (setf data (ldb (byte count 0) data))
-  #+nil(format t "--writing ~sb = ~b  <~s>" count data *partial-octet-write*)
   (when *partial-octet-write*
-    #+nil(format t " (p ~s = ~b " (cdr *partial-octet-write*) (car *partial-octet-write*))
-      ;; we have partial data, combine with current write
+    ;; we have partial data, combine with current write
     (setf (ldb (byte (cdr *partial-octet-write*) count)
                data)
           (car *partial-octet-write*))
-    (incf count (cdr *partial-octet-write*))
-    #+nil(format t " ->~s  = ~b)" count data))
+    (incf count (cdr *partial-octet-write*)))
 
   ;; fixme: probably should reuse existing cons if possible
   (setf *partial-octet-write* nil)
@@ -51,15 +44,11 @@
         for low-bit = (- bits-left 8)
         for octet = (when (>= low-bit 0) (ldb (byte 8 low-bit) data))
         while (>= bits-left 8)
-        ;;do (format t "@ ~b / ~s" octet bits-left)
         do (write-octet octet stream)
         finally (when (> bits-left 0)
-                  #+nil(format t " ->  ~s left = ~b" bits-left
-                          (ldb (byte bits-left 0) data))
                   (setf *partial-octet-write*
                         (cons (ldb (byte bits-left 0) data)
                               bits-left))))
-  #+nil(format t "~%")
   (values))
 
 
@@ -156,8 +145,6 @@
                                   write-float16 write-float32 write-float64
                                   write-twips-u16 write-twips-s16)
                        collect `(,a () `(progn
-                                          #+nil(format t "writing ~s = ~s~%" ',',a
-                                                  ,',value-arg)
                                           (when ,',value-arg
                                             (,',b (floor ,',value-arg) ,',source)))))
                (encodedu32 ()

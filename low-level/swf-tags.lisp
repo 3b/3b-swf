@@ -422,8 +422,7 @@
   :id 56
   :auto
   ((asset-count (ui16))
-   (assets (counted-list (enumerated-list (ui16) (string-sz-utf8)) asset-count)
-           :extra (format t "exported assets~%~s~%" assets))))
+   (assets (counted-list (enumerated-list (ui16) (string-sz-utf8)) asset-count))))
 
 #+untested
 (define-swf-type import-assets-tag (swf-tag)
@@ -626,8 +625,7 @@
 
 (define-swf-type metadata-tag (swf-tag)
   :id 77
-  :auto ((metadata (string-sz-utf8)
-                   :extra (format t "metadata=~s~%" metadata))))
+  :auto ((metadata (string-sz-utf8))))
 
 (define-swf-type do-abc-tag (swf-tag) ;;+r?w
   :id 82
@@ -703,8 +701,7 @@
 
 (define-swf-type swftools-777 (swf-tag)
   :id 777
-  :auto ((octets (rest-of-tag)
-                 :extra (format t "swftools junk :~s~%" octets))))
+  :auto ((octets (rest-of-tag) :extra (format t "swftools junk :~s~%" octets))))
 
 
 

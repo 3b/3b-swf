@@ -226,22 +226,16 @@
               collect `(,name ,@options) into slot-options
               when derived
               collect (list name derived) into derived-forms
-              ;;when extra
-              ;;collect (list name extra) into extra-forms
               finally (return (values read size write derived-forms
-                                      slot-options
-                                      #+nil extra-forms)))
+                                      slot-options)))
       (setf real-slots (nreverse real-slots))
       (setf all-slots (nreverse all-slots))
-      (format t "real=~s~%all=~s~%derive=~s~%" real-slots
-              all-slots derived-forms)
       (alexandria:with-gensyms (source type sub-type initargs rest-var)
         `(progn
            ;; define class
            (defclass ,class-name ,supers
              ,(loop for slot-name in real-slots
                     for options = (cdr (assoc slot-name slot-options))
-                    ;;do (format t "optiona=~s~%" options)
                     collect `(,slot-name :initarg ,slot-name
                                          :accessor ,slot-name
                                          ,@(if (get-properties options '(:initform))

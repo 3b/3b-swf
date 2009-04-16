@@ -319,13 +319,14 @@
                              :element-type '(unsigned-byte 8))
             (read-swf s))))
 
+#+nil
 (defmethod write-swf-part :around (o s)
   (let ((start (file-position s)))
     (prog1
         (call-next-method o s)
       (format t "^^^^^ wrote ~s bytes~%" (- (file-position s) start) ))
     ))
-
+#+nil
 (defmethod %swf-part-size :around (o &rest r)
   (let ((start *swf-sizer-bitpos*))
     (prog1
