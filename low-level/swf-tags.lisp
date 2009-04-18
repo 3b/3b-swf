@@ -227,7 +227,7 @@
   :auto
   ((*shape-tag-version* 3 :local t)
    (shape-id (ui16))
-   (shape-bounds (swf-type 'rect))
+   (bounds (swf-type 'rect))
    (shapes (swf-type 'shape-with-style))))
 
 (define-swf-type define-text-2-tag (swf-tag)
@@ -641,7 +641,7 @@
   :auto
   ((*shape-tag-version* 4 :local t)
    (shape-id (ui16))
-   (shape-bounds (swf-type 'rect))
+   (bounds (swf-type 'rect))
    ;;(areserved (align 8) :initform 0)
    (edge-bounds (swf-type 'rect))
    (reserved (ub 5) :initform 0)

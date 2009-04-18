@@ -72,6 +72,7 @@
   ((straight-edge (ub 1) :derived (subclass-id o 'edge-shape-record)))
   :subclass (subclass-from-id 'edge-shape-record straight-edge))
 
+;; fixme: run initform when optional part not present?
 (define-swf-type straight-edge-shape-record (edge-shape-record)
   :id 1
   :this-var o
@@ -80,13 +81,13 @@
                                   (- (min-bitfield-size-twips
                                       (delta-x o)
                                       (delta-y o)) 2)))
-   (general-line (bit-flag) :derived (not (null (and (delta-x o) (delta-y o)))))
+   (general-line (bit-flag) :derived (not (or (zerop (delta-x o)) (zerop (delta-y o)))))
    (vertical-line (bit-flag) :optional (not general-line)
-                  :derived (not (null (and (delta-y o) (not (delta-x o))))))
+                  :derived (and (not (zerop (delta-y o))) (zerop (delta-x o))))
    ;; fixme: set these to 0 instead of nil when missing, and adjust the
    ;; flag derives accordingly
-   (delta-x (sb-twips (+ 2 num-bits)) :optional (or general-line (not vertical-line)))
-   (delta-y (sb-twips (+ 2 num-bits)) :optional (or general-line vertical-line))))
+   (delta-x (sb-twips (+ 2 num-bits)) :initform 0 :optional (or general-line (not vertical-line)))
+   (delta-y (sb-twips (+ 2 num-bits)) :initform 0 :optional (or general-line vertical-line))))
 
 (define-swf-type curved-edge-shape-record (edge-shape-record)
   :id 0

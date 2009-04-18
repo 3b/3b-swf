@@ -297,6 +297,7 @@
     (fill-and-stroke)
     (save-png file)))
 
+#+nil
 (defun circle-test (file)
   (with-swf-canvas (:width 100 :height 100)
     ;;(scale 5 10)
@@ -308,7 +309,7 @@
     (save-png file)))
 
 
-
+#+nil
 (defun test-gradient (file fun)
   (with-swf-canvas (:width 500 :height 500)
     (with-graphics-state

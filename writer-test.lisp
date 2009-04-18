@@ -698,8 +698,10 @@
      (make-instance 'frame-label-tag
                     'name "foo"))
 
-
     (list
+     (hef-svg::render-document)
+     (place-object-2 122 122 15 15 :sx 0.2 :sy 0.2))
+    #+nil(list
      ;;(vecto::center-test "foo " 123)
      ;;(vecto::twittertext "foo " 20 "c:/windows/fonts/arial.ttf" 123)
      ;;(vecto::circle-test  123)
@@ -711,8 +713,9 @@
      (vecto::feedlike-icon 124)
      (place-object-2 124 124 120 15 :sx 1.0 :sy 1.0)
      (vecto::line-styletest 125)
-     (place-object-2 125 125 15 120 :sx 1.0 :sy 1.0)
-     (make-instance 'swf-show-frame-tag)))
+     (place-object-2 125 125 15 120 :sx 1.0 :sy 1.0))
+
+    (list (make-instance 'swf-show-frame-tag)))
    :x-twips 250.0
    :y-twips 250.0
    :frame-rate 10
