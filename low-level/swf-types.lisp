@@ -214,22 +214,22 @@
 
 (define-swf-type fill-repeating-bitmap-fill (fill-style)
   :id #x40
-  :auto ((bitmap-id (ui16))
+  :auto ((bitmap-id (swf-type 'character-id))
          (bitmap-matrix (swf-type 'matrix))))
 
 (define-swf-type fill-clipped-bitmap-fill (fill-style)
   :id #x41
-  :auto ((bitmap-id (ui16))
+  :auto ((bitmap-id (swf-type 'character-id))
          (bitmap-matrix (swf-type 'matrix))))
 
 (define-swf-type fill-non-smoothed-repeating-bitmap-fill (fill-style)
   :id #x42
-  :auto ((bitmap-id (ui16))
+  :auto ((bitmap-id (swf-type 'character-id))
          (bitmap-matrix (swf-type 'matrix))))
 
 (define-swf-type fill-non-smoothed-clipped-bitmap-fill (fill-style)
   :id #x43
-  :auto ((bitmap-id (ui16))
+  :auto ((bitmap-id (swf-type 'character-id))
          (bitmap-matrix (swf-type 'matrix))))
 
 
@@ -330,7 +330,7 @@
    (state-down (bit-flag))
    (state-over (bit-flag))
    (state-up (bit-flag))
-   (character-id (ui16))
+   (character-id (swf-type 'character-id))
    (place-depth (ui16))
    (place-matrix (swf-type 'matrix))
    (color-transform (swf-type 'cxform-with-alpha) :optional (= 2 *define-button-ver*))

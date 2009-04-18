@@ -100,22 +100,22 @@
 ;;  (binding it internally doesn't work very well, since it depends on the
 ;;   state of the bitstream in the caller, since (align 8) takes up more space
 ;;   if the bitstream isn't aligned)
-(defgeneric %swf-part-size (part &key body-only &allow-other-keys)
+(defgeneric %swf-part-size (type part &key body-only &allow-other-keys)
   (:method-combination swf-part :most-specific-last)
   (:documentation "calculate size of a swf-part in bits"))
 
-(defmethod %swf-part-size swf-part (part &rest keys &key)
-  (when (next-method-p) (apply #'call-next-method part keys)))
+(defmethod %swf-part-size swf-part (type part &rest keys &key)
+  (when (next-method-p) (apply #'call-next-method type part keys)))
 
-(defun swf-part-size (part &key align body-only)
+(defun swf-part-size (type part &key align body-only)
   (with-swf-sizers (vvvv)
       (let ((*swf-sizer-bitpos* 0)
             (vvvv nil))
-        (%swf-part-size part :body-only body-only)
+        (%swf-part-size type part :body-only body-only)
         (when align (align align))
         *swf-sizer-bitpos*)))
 
-(defgeneric write-swf-part (part stream)
+(defgeneric write-swf-part (type part stream)
   (:method-combination swf-part :most-specific-last)
   (:documentation "write a swf-part to a stream"))
 
@@ -205,6 +205,7 @@
   (let ((real-slots (reverse (copy-list (find-if-not 'consp slots))))
         (all-slots (reverse (mapcar (lambda (A) (if (consp a) (car a) a)) slots)))
         (this-var (or this-var (gensym "THIS-")))
+        (type-var (gensym "TYPE-"))
         (value-arg (or value-var (gensym))))
     (multiple-value-bind (read-forms size-forms write-forms
                                      derived-forms
@@ -295,7 +296,8 @@
                                 m-i))))
                    ,@ (when align-after `((align ,align-after)))))))
            ;; define sizer
-           (defmethod %swf-part-size swf-part ((,this-var ,class-name) &rest ,rest-var &key)
+           (defmethod %swf-part-size swf-part (,type-var (,this-var ,class-name) &rest ,rest-var &key)
+             (declare (ignore ,type-var))
              (with-swf-sizers (,value-arg)
                (macrolet ((super (slot)
                             `(,slot ,',this-var)))
@@ -334,10 +336,11 @@
                           (make-bindings
                            size-forms
                            `((when (next-method-p)
-                               (apply #'call-next-method ,this-var ,rest-var))))))
+                               (apply #'call-next-method ,type-var ,this-var ,rest-var))))))
                  ,@ (when align-after `((align ,align-after))))))
            ;; define writer
-           (defmethod write-swf-part swf-part ((,this-var ,class-name) ,source)
+           (defmethod write-swf-part swf-part (,type-var (,this-var ,class-name) ,source)
+             (declare (ignore ,type-var))
              (with-swf-writers (,source ,value-arg)
                (macrolet ((super (slot)
                             `(,slot ,',this-var)))
@@ -382,7 +385,7 @@
                           (make-bindings
                            write-forms
                            `((when (next-method-p)
-                               (call-next-method ,this-var ,source))))))
+                               (call-next-method ,type-var ,this-var ,source))))))
                  ,@ (when align-after `((align ,align-after))))))
            ;; define ID mapping methods if needed
            ,@ (when id

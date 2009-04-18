@@ -319,8 +319,8 @@ specified dimensions."
 
 
         (make-instance '3b-swf::define-shape-4-tag
-                       '3b-swf::shape-id id
-                       '3b-swf::shape-bounds (3b-swf::make-rect
+                       '3b-swf::character-id id
+                       '3b-swf::bounds (3b-swf::make-rect
                                               0 0 (width image) (height image))
                        '3b-swf::edge-bounds (3b-swf::make-rect
                                              0 0 (width image) (height image))

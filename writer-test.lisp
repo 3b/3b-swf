@@ -75,9 +75,9 @@
      (flex:with-output-to-sequence (s)
        (let ((*partial-octet-write* nil))
          (with-swf-writers (s vv)
-           #+nil(write-swf-part (make-file-attributes :direct-blit nil :use-gpu nil
+           #+nil(write-swf-part nil (make-file-attributes :direct-blit nil :use-gpu nil
                                                  :has-metadata t) s)
-           #+nil(write-swf-part
+           #+nil(write-swf-part nil
                  (make-script-limits 60 1000) s)
            (write-swf-part
             #+nil(make-instance 'frame-label-tag
@@ -118,21 +118,21 @@
     (flet
         ((body (s)
            (with-swf-writers (s vvv)
-             (write-swf-part (make-rect 0 0 x-twips y-twips) s)
+             (write-swf-part 'rect (make-rect 0 0 x-twips y-twips) s)
              (write-fixed8 frame-rate stream)
              (write-ui16 frame-count stream )
              ;; flags: reserved=000, HasMetadata=1,AS3=1,res=00, UseNetwork=1
-             (write-swf-part (or attributes-tag
+             (write-swf-part nil (or attributes-tag
                                  (make-file-attributes
                                   :has-metadata (find +metadata-tag+
                                                       body-tags :key 'tag))) s)
 
-            (write-swf-part (make-script-limits script-limits-timeout
+            (write-swf-part nil (make-script-limits script-limits-timeout
                                                 script-limits-stack) s)
 
             (loop for tag in body-tags
-                  do (write-swf-part tag s))
-            (write-swf-part (make-instance 'swf-end-tag) s)
+                  do (write-swf-part nil tag s))
+            (write-swf-part 'swf-end-tag (make-instance 'swf-end-tag) s)
 
             )))
       (with-swf-writers (stream vv)
@@ -147,7 +147,7 @@
         (let ((size
                (loop for tag in body-tags
                      for i from 0
-                     for size = (swf-part-size tag)
+                     for size = (swf-part-size nil tag)
                      do (format t "~s size=~s~%" i size)
                      sum size)))
           (format t "size = ~s~%" size)
@@ -209,7 +209,7 @@
 
      (make-instance
       'define-shape-tag
-      'shape-id 1
+      'character-id 1
       'bounds (make-rect -20 -20 20 20)
       'shapes (make-instance
                'shape-with-style
@@ -320,10 +320,10 @@
             (read-swf s))))
 
 #+nil
-(defmethod write-swf-part :around (o s)
+(defmethod write-swf-part :around (type o s)
   (let ((start (file-position s)))
     (prog1
-        (call-next-method o s)
+        (call-next-method type o s)
       (format t "^^^^^ wrote ~s bytes~%" (- (file-position s) start) ))
     ))
 #+nil
@@ -365,9 +365,10 @@
        (let ((*partial-octet-write* nil))
          (with-swf-writers (s vv)
            (write-swf-part
+            'define-shape-tag
            (make-instance
             'define-shape-tag
-            'shape-id 1
+            'character-id 1
             'bounds (make-rect -10 -10 10 10)
             'shapes (make-instance
                      'shape-with-style
@@ -430,7 +431,7 @@
 
      (make-instance
       'define-shape-tag
-      'shape-id 1
+      'character-id 1
       'bounds (make-rect -200 -200 200 200)
       'shapes (make-instance
                'shape-with-style
@@ -510,8 +511,8 @@
     (list (vecto::test 123)
           #+nil(make-instance
             'define-shape-4-tag
-            'shape-id 123
-            'shape-bounds (make-rect -20 -20 20 20)
+            'character-id 123
+            'bounds (make-rect -20 -20 20 20)
             'edge-bounds (make-rect -20 -20 20 20)
             'shapes (make-instance
                      'shape-with-style
@@ -631,7 +632,7 @@
     (is
      (flex:with-output-to-sequence (s)
        (let ((*partial-octet-write* nil))
-         (write-swf-part (vecto::test 123) s)))
+         (write-swf-part nil (vecto::test 123) s)))
 
 )  (read-swf-part 'swf-tag is))
 
@@ -642,10 +643,11 @@
        (let ((*partial-octet-write* nil))
          (with-swf-writers (s vv)
            (write-swf-part
+            'define-shape-4-tag
             (make-instance
             'define-shape-4-tag
-            'shape-id 1
-            'shape-bounds (make-rect -10 -10 10 10)
+            'character-id 1
+            'bounds (make-rect -10 -10 10 10)
             'edge-bounds (make-rect -10 -10 10 10)
             'shapes (make-instance
                      'shape-with-style

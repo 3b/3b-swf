@@ -154,8 +154,7 @@
                     ,@(when align `((align ,align)))
                     (write-bit-flag ,',value-arg ,',source)))
                (swf-type (type)
-                 (declare (ignore type))
-                 `(write-swf-part ,',value-arg ,',source))
+                 `(write-swf-part ,type ,',value-arg ,',source))
                ;; these may need to bind swf-type internally to pass the value
                ;; arg
                (sized-list (type size)

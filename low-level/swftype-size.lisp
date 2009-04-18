@@ -47,8 +47,7 @@
                      ,@(when align `((align ,align)))
                      (incf *swf-sizer-bitpos*)))
                 (swf-type (type)
-                  (declare (ignore type))
-                  `(%swf-part-size ,',value-arg))
+                  `(%swf-part-size ,type ,',value-arg))
 
                 (sized-list (type size)
                   (declare (ignore size))

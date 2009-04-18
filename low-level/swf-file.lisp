@@ -4,21 +4,22 @@
 ;; testing interface
 
 (defun read-swf (stream)
-  (with-swf-readers (stream)
-    (let* ((fc (ui8))
-           (w (ui8))
-           (s (ui8))
-           (*swf-version* (ui8))
-           (size (ui32))
-           (*blob-tags* *blob-tags*))
-      (declare (ignorable size))
-      ;; check signature ;; fixme: handle error properly
-      (assert (and (= s 83) (= w 87) (member fc '(67 70)))) ;;S W F/C
-      (ecase fc
-        (67 (flex:with-input-from-sequence
-                (s (chipz:decompress nil 'chipz:zlib stream))
-              (read-swf-file-body s)))
-        (70 (read-swf-file-body stream))))))
+  (with-character-id-maps
+    (with-swf-readers (stream)
+     (let* ((fc (ui8))
+            (w (ui8))
+            (s (ui8))
+            (*swf-version* (ui8))
+            (size (ui32))
+            (*blob-tags* *blob-tags*))
+       (declare (ignorable size))
+       ;; check signature ;; fixme: handle error properly
+       (assert (and (= s 83) (= w 87) (member fc '(67 70)))) ;;S W F/C
+       (ecase fc
+         (67 (flex:with-input-from-sequence
+                 (s (chipz:decompress nil 'chipz:zlib stream))
+               (read-swf-file-body s)))
+         (70 (read-swf-file-body stream)))))))
 
 ;; swf-tag is odd, so defining it by hand for now...
 (defclass swf-tag ()
@@ -116,40 +117,43 @@
 
 
 
-(defmethod write-swf-part swf-part ((tag swf-tag) source)
-  (with-swf-writers (source v)
-    (let ((tag-no (subclass-id tag 'swf-tag))
-          (start (file-position source)))
-      ;; not sure if calculating size on fly is better, or just writing
-      ;; to a buffer... trying size first to test the code
-      (let ((size (swf-part-size tag :body-only t)))
-        (align 8)
-        (unless (zerop (rem size 8))
-          (format t "tag not multiple of 8 bits? = ~s bits" size))
-        (setf size (ash size -3))
-        (if (<= 0 size 62)
-            ;; fixme: write shorter way to pass args to writes when
-            ;; calling them directly
-            (write-ui16 (dpb tag-no (byte 10 6) size) source)
-            (progn
-              (write-ui16 (dpb tag-no (byte 10 6) 63) source)
-              (write-ui32 size source)))
-        (if (member tag *trace-tags*)
-            (trace write-swf-part)
-            (when *trace-tags* (untrace read-swf-part)))
-        (prog1
-            (call-next-method tag source)
-          (align 8)
-          (if (member tag *trace-tags*) (untrace read-swf-part)))))))
+(defmethod write-swf-part swf-part (type (tag swf-tag) source)
+  (declare (ignore type))
+  (with-character-id-maps
+    (with-swf-writers (source v)
+     (let ((tag-no (subclass-id tag 'swf-tag))
+           (start (file-position source)))
+       ;; not sure if calculating size on fly is better, or just writing
+       ;; to a buffer... trying size first to test the code
+       (let ((size (swf-part-size type tag :body-only t)))
+         (align 8)
+         (unless (zerop (rem size 8))
+           (format t "tag not multiple of 8 bits? = ~s bits" size))
+         (setf size (ash size -3))
+         (if (<= 0 size 62)
+             ;; fixme: write shorter way to pass args to writes when
+             ;; calling them directly
+             (write-ui16 (dpb tag-no (byte 10 6) size) source)
+             (progn
+               (write-ui16 (dpb tag-no (byte 10 6) 63) source)
+               (write-ui32 size source)))
+         (if (member tag *trace-tags*)
+             (trace write-swf-part)
+             (when *trace-tags* (untrace read-swf-part)))
+         (prog1
+             (call-next-method type tag source)
+           (align 8)
+           (if (member tag *trace-tags*) (untrace read-swf-part))))))))
 
 
-(defmethod %swf-part-size swf-part ((tag swf-tag) &key body-only)
+(defmethod %swf-part-size swf-part (type (tag swf-tag) &key body-only)
+  (declare (ignore type))
   (with-swf-sizers (v)
     (let ((tag-no (subclass-id tag 'swf-tag))
           (v nil))
       ;; fixme: need some better way to count alignment into size...
       (let* ((start *swf-sizer-bitpos*)
-             (size (call-next-method tag :body-only body-only)))
+             (size (call-next-method type tag :body-only body-only)))
         (align 8)
         (setf size (- *swf-sizer-bitpos* start))
         (unless body-only

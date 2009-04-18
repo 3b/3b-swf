@@ -81,9 +81,12 @@
                                   (- (min-bitfield-size-twips
                                       (delta-x o)
                                       (delta-y o)) 2)))
-   (general-line (bit-flag) :derived (not (or (zerop (delta-x o)) (zerop (delta-y o)))))
+   ;; fixme: clean up logic on these...
+   (general-line (bit-flag) :derived (not (or (not (delta-x o)) (zerop (delta-x o))
+                                              (not (delta-y o)) (zerop (delta-y o)))))
    (vertical-line (bit-flag) :optional (not general-line)
-                  :derived (and (not (zerop (delta-y o))) (zerop (delta-x o))))
+                  :derived (and (delta-y o) (not (zerop (delta-y o)))
+                                (or (not (delta-x o)) (zerop (delta-x o)))))
    ;; fixme: set these to 0 instead of nil when missing, and adjust the
    ;; flag derives accordingly
    (delta-x (sb-twips (+ 2 num-bits)) :initform 0 :optional (or general-line (not vertical-line)))

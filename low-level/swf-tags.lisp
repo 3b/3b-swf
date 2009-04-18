@@ -3,19 +3,61 @@
 (define-swf-type swf-show-frame-tag (swf-tag)
   :id 1)
 
+(defvar *character-id-map*)
+(defvar *character-write-index*)
+(defmacro with-character-id-maps (&body body)
+ `(let ((*character-write-index* 0)
+        (*character-id-map* (make-hash-table)))
+    ,@body))
+
+;; todo: implement a macro for setting up read/write/size for simple types
+;; and convert things like this and lists to use that instead
+(defmethod read-swf-part ((type (eql 'character-id)) source &key)
+  (with-swf-readers (source)
+    (let ((id (ui16)))
+      (or (gethash id *character-id-map*)
+          (setf (gethash id *character-id-map*) (gensym "CHARACTER-ID-"))))))
+
+(defmethod %swf-part-size swf-part ((type (eql 'character-id)) value &key)
+  (with-swf-sizers (value)
+    (ui16)))
+
+(defmethod write-swf-part swf-part ((type (eql 'character-id)) id source)
+  (with-swf-writers (source value)
+    (let ((value (or (gethash id *character-id-map*)
+                     (setf (gethash id *character-id-map*)
+                           (incf *character-write-index*)))))
+      (ui16))))
+
+#+nil(define-swf-type character-id ()
+  :auto ((id ()))
+  ;; not sure if these should reject IDs that are already in the map or not?
+  ;; for now allowing it, so we can use the same type for references as well
+  ;; at some point need some sanity checks to catch missing references though
+  :reader ((id
+            (let ((id (ui16)))
+              (or (gethash id *character-id-map*)
+                  (setf (gethash id *character-id-map*) (gensym "CHARACTER-ID-"))))))
+  :sizer ((id (ui16)))
+  :value-var value
+  :writer ((id (let ((value (or (gethash id *character-id-map*)
+                                (setf (gethash id *character-id-map*) (incf *character-write-index*)))))
+                 (ui16)))))
+
+
 (defvar *shape-tag-version*)
 (define-swf-type define-shape-tag (swf-tag)
   :id 2
   :auto
   ((*shape-tag-version* 1 :local t)
-   (shape-id (ui16))
+   (character-id (swf-type 'character-id))
    (bounds (swf-type 'rect))
    (shapes (swf-type 'shape-with-style))))
 
 (define-swf-type place-object-tag (swf-tag)
   :id 4
   :auto
-  ((character-id (ui16))
+  ((character-id (swf-type 'character-id))
    (depth (ui16))
    (matrix (swf-type 'matrix))
    (color-xform (swf-type 'cxform) :optional (not (zerop (bytes-left-in-tag))))))
@@ -23,21 +65,21 @@
 (define-swf-type remove-object-tag (swf-tag)
   :id 5
   :auto
-  ((character-id (ui16))
+  ((character-id (swf-type 'character-id))
    (depth (ui16))))
 
 ;;#+untested
 (define-swf-type define-bits-tag (swf-tag)
   :id 6
   :auto
-  ((character-id (ui16))
+  ((character-id (swf-type 'character-id))
    (image-data (rest-of-tag))))
 
 #+broken
 (define-swf-type define-button (swf-tag)
   :id 7
   :auto
-  ((button-id (ui16))
+  ((button-id (swf-type 'character-id))
    (characters (error "can't read terminated button-record list yet")
                ;; can't just test flags after reading, since it reads
                ;; too many fields
@@ -58,6 +100,7 @@
   :id 10
   :this-var o
   :auto
+  ;; fixme: intern and regenerate font IDs like character-id
   ((font-id (ui16))
    ;; this is sort of ugly, # of entries is derived from first entry,
    ;; so splitting into pieces...
@@ -74,7 +117,7 @@
   :id 11
   :auto
   ((*define-text-ver* 1 :local t)
-   (character-id (ui16))
+   (character-id (swf-type 'character-id))
    (bounds (swf-type 'rect))
    (matrix (swf-type 'matrix))
    (glyph-bits (ui8))
@@ -109,7 +152,7 @@
   :id 14
   :this-var o
   :auto
-  ((sound-id (ui16))
+  ((sound-id (character-id)) ;; fixme: separate namespaces for sound/character IDs?
    (sound-format (ub 4))
    (sound-rate (ub 2)) ;0=5.5khz,1=11k,2=22,3=44
    (16bit (bit-flag))  ;; else 8 bit
@@ -122,13 +165,14 @@
 
 (define-swf-type start-sound-tag (swf-tag)
   :id 15
-  :auto ((sound-id (ui16))
+  :auto ((sound-id (swf-type 'character-id))
          (sound-info (swf-type 'sound-info))))
 
 (define-swf-type define-button-sound (swf-tag)
   :id 17
   :auto
-  ((button-id (ui16))
+  ;; fixme: separate namespace for button and characters?
+  ((button-id (swf-type 'character-id))
    (button-sound-char-0 (ui16))
    (button-sound-info-0 (swf-type 'sound-info)
                         :optional (not (zerop button-sound-char-0)))
@@ -166,13 +210,13 @@
 (define-swf-type define-bits-lossless-tag (swf-tag)
   :id 20
   :auto
-  ((character-id (ui16))
+  ((character-id (swf-type 'character-id))
    (bitmap-data (swf-type 'bitmap-tag-data-rgb))   ))
 
 (define-swf-type define-bits-jpeg-2-tag (swf-tag)
   :id 21
   :auto
-  ((character-id (ui16))
+  ((character-id (swf-type 'character-id))
    (image-data (rest-of-tag)))
   :this-var o
   :print-unreadably ("id=~s bytes=~s" (character-id o) (length (image-data o))))
@@ -181,14 +225,14 @@
   :id 22
   :auto
   ((*shape-tag-version* 2 :local t)
-   (shape-id (ui16))
+   (character-id (swf-type 'character-id))
    (bounds (swf-type 'rect))
    (shapes (swf-type 'shape-with-style))))
 
 #+untested
 (define-swf-type define-button-cxform-tag (swf-tag)
   :id 23
-  :auto ((button-id (ui16))
+  :auto ((button-id (swf-type 'character-id))
          (button-color-transform (swf-type 'cxform))))
 
 (define-swf-type protect-tag (swf-tag)
@@ -208,7 +252,7 @@
    (has-character (bit-flag) :derived (not (null (character-id o))))
    (move-flag (bit-flag))
    (depth (ui16))
-   (character-id (ui16) :optional  has-character)
+   (character-id (swf-type 'character-id) :optional  has-character)
    (matrix (swf-type 'matrix) :optional has-matrix)
    (color-transform (swf-type 'cxform-with-alpha) :optional has-color-transform)
    (po2-ratio (ui16) :optional has-ratio)
@@ -226,7 +270,7 @@
   :id 32
   :auto
   ((*shape-tag-version* 3 :local t)
-   (shape-id (ui16))
+   (character-id (swf-type 'character-id))
    (bounds (swf-type 'rect))
    (shapes (swf-type 'shape-with-style))))
 
@@ -234,7 +278,7 @@
   :id 33
   :auto
   ((*define-text-ver* 2 :local t)
-   (character-id (ui16))
+   (character-id (swf-type 'character-id))
    (bounds (swf-type 'rect))
    (matrix (swf-type 'matrix))
    (glyph-bits (ui8))
@@ -248,7 +292,7 @@
   :id 34
   :auto
   ((*define-button-ver* 2 :local t)
-   (button-id (ui16))
+   (button-id (swf-type 'character-id))
    (reserved-flags (ub 7))
    (track-as-menu (bit-flag))
    (action-offset (ui16))
@@ -263,7 +307,7 @@
   :id 35
   :this-var o
   :auto
-  ((character-id (ui16))
+  ((character-id (swf-type 'character-id))
    (alpha-data-offset (ui32) :derived (length (image-data o)))
    (image-data (counted-list (ui8) alpha-data-offset))
    (bitmap-alpha-data (rest-of-tag)))
@@ -273,14 +317,14 @@
 (define-swf-type define-bits-lossless-2-tag (swf-tag)
   :id 36
   :auto
-  ((character-id (ui16))
+  ((character-id (swf-type 'character-id))
    (bitmap-data (swf-type 'bitmap-tag-data-rgba))))
 
 (define-swf-type define-edit-text-tag (swf-tag)
   :id 37
   :this-var o
   :auto
-  ((character-id (ui16))
+  ((character-id (swf-type 'character-id))
    (bounds (swf-type 'rect))
    (has-text (bit-flag :align 8) :derived (not (null (initial-text o))))
    (word-wrap (bit-flag))
@@ -323,7 +367,7 @@
 (define-swf-type define-sprite-tag (swf-tag)
   :id 39
   :auto
-  ((sprite-id (ui16))
+  ((character-id (swf-type 'character-id))
    (frame-count (ui16))
    (control-tags (list-until (swf-type 'swf-tag)
                              (lambda (x)
@@ -359,7 +403,7 @@
   :auto
   ((*morph-shape-ver* 1 :local t )
    (*shape-tag-version* 1 :local t) ;; fixme: is this right?
-   (character-id (ui16))
+   (character-id (swf-type 'character-id))
    (start-bounds (swf-type 'rect))
    (end-bounds (swf-type 'rect))
    ;; fixme: derive this (offset to end-edges field), and use it...
@@ -439,7 +483,7 @@
 
 (define-swf-type do-init-action-tag (swf-tag)
   :id 59
-  :auto ((shape-id (ui16))
+  :auto ((shape-id (swf-type 'character-id))
          (actions (sized-list (swf-type 'action-record)
                               (1- (bytes-left-in-tag))))
          (action-end-flag (ui8) :derived 0)))
@@ -447,7 +491,7 @@
 (define-swf-type define-video-stream-tag (swf-tag)
   :id 60
   :auto
-  ((character-id (ui16))
+  ((character-id (swf-type 'character-id))
    (num-frames (ui16))
    (width (ui16))
    (height (ui16))
@@ -532,7 +576,7 @@
    (depth (ui16))
    ;; is the logic for this right?
    (class-name (string-sz-utf8) :optional  has-class-name)
-   (character-id (ui16) :optional has-character)
+   (character-id (swf-type 'character-id) :optional has-character)
    (matrix (swf-type 'matrix) :optional has-matrix)
    (color-transform (swf-type 'cxform-with-alpha) :optional has-color-transform)
    (po3-ratio (ui16) :optional has-ratio)
@@ -568,7 +612,7 @@
 (define-swf-type csm-text-settings-tag (swf-tag)
   :id 74
   :auto
-  ((text-id (ui16))
+  ((text-id (swf-type 'character-id))
    (use-flash-type (ub 2))
    (grid-fit (ub 3))
    (reserved (ub 3))
@@ -640,7 +684,7 @@
   :id 83
   :auto
   ((*shape-tag-version* 4 :local t)
-   (shape-id (ui16))
+   (character-id (swf-type 'character-id))
    (bounds (swf-type 'rect))
    ;;(areserved (align 8) :initform 0)
    (edge-bounds (swf-type 'rect))
@@ -656,7 +700,7 @@
   :auto
   ((*morph-shape-ver* 2 :local t )
    (*shape-tag-version* 1 :local t) ;; fixme: is this right?
-   (character-id (ui16))
+   (character-id (swf-type 'character-id))
    (start-bounds (swf-type 'rect))
    (end-bounds (swf-type 'rect))
    (start-edge-bounds (swf-type 'rect))
