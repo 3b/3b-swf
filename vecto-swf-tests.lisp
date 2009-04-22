@@ -487,7 +487,8 @@
         (loop for i downfrom 1.0 by 0.05
               repeat 20 do
               (circle i)))
-      (save-png file))))
+      (add-shape 'foo)
+      (vecto::swf-sprite file))))
 
 (defun line-styletest (file)
   (with-swf-canvas (:width 200 :height 100)

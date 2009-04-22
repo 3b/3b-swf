@@ -1,4 +1,4 @@
-(in-package :3b-swf)
+(in-package :%3b-swf)
 ;; todo: define the rest of these (adding as needed for now)
 (defconstant +swf-end-tag+ 0)
 (defconstant +metadata-tag+ 77)

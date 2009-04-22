@@ -1,4 +1,4 @@
-(in-package :3b-swf)
+(in-package :%3b-swf)
 
 ;;; fixme: factor out the common parts between the foo-*-style-array types
 

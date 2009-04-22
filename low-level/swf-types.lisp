@@ -1,4 +1,4 @@
-(in-package :3b-swf)
+(in-package :%3b-swf)
 
 (defvar *swf-version*)
 (defparameter *array-print-verbose* nil)
@@ -22,7 +22,7 @@
          (xmax (sb-twips nbits))
          (ymin (sb-twips nbits))
          (ymax (sb-twips nbits)))
-  :align-after 8
+  ;;:align-after 8
   :this-var o
   :print-unreadably ("(~s,~s) (~s,~s)" (xmin o) (ymin o) (xmax o) (ymax o)))
 
@@ -35,8 +35,23 @@
   :auto ((r (ui8) :initform 255)
          (g (ui8) :initform 0)
          (b (ui8) :initform 128)
-         (a (ui8) :initform 255))
-)
+         (a (ui8) :initform 255)))
+
+;; handle using extra/missing alpha channel in colors...
+  ;; possibly should warn here, or make sure the proper type gets
+  ;; assigned in the first place?
+(defmethod write-swf-part swf-part ((type (eql 'rgba)) (o rgb) s)
+  (write-swf-part 'rgba (make-instance 'rgba
+                                       'r (r o) 'g (g o) 'b (b o) 'a 255) s))
+(defmethod write-swf-part swf-part ((type (eql 'rgb)) (o rgba) s)
+  (write-swf-part 'rgb (make-instance 'rgb 'r (r o) 'g (g o) 'b (b o)) s))
+;; fixme: implement these directly
+(defmethod %swf-part-size swf-part ((type (eql 'rgba)) (o rgb) &key)
+  (%swf-part-size 'rgba (make-instance 'rgba
+                                      'r (r o) 'g (g o) 'b (b o) 'a 255)))
+(defmethod %swf-part-size swf-part ((type (eql 'rgb)) (o rgba) &key)
+  (%swf-part-size 'rgb (make-instance 'rgb 'r (r o) 'g (g o) 'b (b o))))
+
 
 (define-swf-type argb ()
   :auto ((a (ui8)) (r (ui8)) (g (ui8)) (b (ui8))))

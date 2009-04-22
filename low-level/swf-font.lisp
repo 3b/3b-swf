@@ -1,4 +1,4 @@
-(in-package :3b-swf)
+(in-package :%3b-swf)
 
 (define-swf-type zone-record ()
   :this-var o

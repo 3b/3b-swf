@@ -1,4 +1,4 @@
-(in-package :3b-swf)
+(in-package :%3b-swf)
 
 (define-swf-type swf-show-frame-tag (swf-tag)
   :id 1)
@@ -27,6 +27,7 @@
     (let ((value (or (gethash id *character-id-map*)
                      (setf (gethash id *character-id-map*)
                            (incf *character-write-index*)))))
+      (format t "wrote character id ~s -> ~s~%" id value)
       (ui16))))
 
 #+nil(define-swf-type character-id ()
@@ -152,7 +153,7 @@
   :id 14
   :this-var o
   :auto
-  ((sound-id (character-id)) ;; fixme: separate namespaces for sound/character IDs?
+  ((sound-id (swf-type 'character-id)) ;; fixme: separate namespaces for sound/character IDs?
    (sound-format (ub 4))
    (sound-rate (ub 2)) ;0=5.5khz,1=11k,2=22,3=44
    (16bit (bit-flag))  ;; else 8 bit
@@ -271,6 +272,7 @@
   :auto
   ((*shape-tag-version* 3 :local t)
    (character-id (swf-type 'character-id))
+   ;;(junk (align 8))
    (bounds (swf-type 'rect))
    (shapes (swf-type 'shape-with-style))))
 
@@ -567,8 +569,8 @@
    (has-matrix (bit-flag) :derived (not (null (matrix o))))
    (has-character (bit-flag) :derived (not (null (character-id o))))
    (move-flag (bit-flag))
-   (reserved3=0 (ub 3))
-   (has-image (bit-flag)) ;; fixme: derive this?
+   (reserved3=0 (ub 3) :initform 0)
+   (has-image (bit-flag) :initform nil) ;; fixme: derive this?
    (has-class-name (bit-flag) :derived (not (null (class-name o))))
    (has-cache-as-bitmap (bit-flag) :derived (not (null (bitmap-cache o))))
    (has-blend-mode (bit-flag) :derived (not (null (blend-mode o))))

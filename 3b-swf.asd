@@ -4,7 +4,12 @@
                         "flexi-streams"
                         "alexandria"
                         "chipz"
-                        "salza2")
+                        "salza2"
+                        ;; fixme: split some of these off into separate packages
+                        "cl-jpeg"
+                        "vecto"
+                        "cxml"
+                        "zpng")
            :components ((:module "low-level"
                                  :components ((:file "package")
                                               (:file "swf-tag-ids")
@@ -24,5 +29,8 @@
                                               (:file "swf-font")
                                               (:file "swf-file")
                                               (:file "swf-tags"))
-                                 :serial t))
+                                 :serial t)
+                        (:file "package")
+                        (:file "api")
+                        (:file "shape"))
            :serial t)

@@ -1,4 +1,4 @@
-(in-package :3b-swf)
+(in-package :%3b-swf)
 
 ;;;; stuff for defining lower level compound types (possibly tags also
 ;;;; at some point?)
