@@ -23,7 +23,11 @@
 
 ;; swf-tag is odd, so defining it by hand for now...
 (defclass swf-tag ()
-  ((tag :initform nil :initarg :tag :reader tag)))
+  ((tag :initform nil :initarg :tag)))
+
+(defmethod tag ((s swf-tag))
+  (or (slot-value s 'tag)
+      (subclass-id s 'swf-tag)))
 
 (defmethod subclass-from-id ((type (eql 'swf-tag)) (id number))
   ;; default to reading tag as a blob if no more specific reader is available
@@ -129,7 +133,7 @@
         (unless (zerop (rem size 8))
           (format t "tag not multiple of 8 bits? = ~s bits" size))
         (setf size (ash size -3))
-        (if (<= 0 size 62)
+        (if (and (not (member tag-no '(2 26))) (<= 0 size 62))
             ;; fixme: write shorter way to pass args to writes when
             ;; calling them directly
             (progn
@@ -145,8 +149,8 @@
         (prog1
             (call-next-method type tag source)
           (align 8)
-          (if (= (- (file-position source) start) size)
-            (format t "tag size = ~s, calculated = ~s  -- (~s ~s ~s ~s)~%"
+          (unless (= (- (file-position source) start) size)
+              #+nil(format t "tag size = ~s, calculated = ~s  -- (~s ~s ~s ~s)~%"
                    (- (file-position source) start) size
                    start (file-position source) size size)
             (error "tag size = ~s, calculated = ~s  -- (~s ~s ~s ~s)"
@@ -168,7 +172,7 @@
         (align 8)
         (setf size (- *swf-sizer-bitpos* start))
         (unless body-only
-          (if (<= 0 (/ size 8) 62)
+          (if (and (not (member (tag tag) '(2 26))) (<= 0 (/ size 8) 62))
               ;; fixme: write shorter way to pass args to writes when
               ;; calling them directly
               (ui16)

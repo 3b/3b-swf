@@ -15,8 +15,12 @@
   ())
 
 (defclass list-clipping-path (clipping-path)
-  ((paths :accessor paths :initarg :paths :initform nil)))
+  ((paths :accessor paths :initarg :paths :initform nil))
+  (:default-initargs :data :unused :width :no-width :height :no-height :scratch :no-scratch))
 
+(defmethod print-object ((clipping-path list-clipping-path) stream)
+  (print-unreadable-object (clipping-path stream :type t :identity t)
+    (format stream "~s" (paths clipping-path))))
 
 (defmethod state-image ((state graphics-state-swf) width height)
   "Set the backing image of the graphics state to a shape of the
@@ -106,10 +110,12 @@ specified dimensions."
         :a (floor (* 255 a))))
 
 (defun add-shape (id &key clip)
-  (format t "add-shape: ~s~%" id)
+  #+nil(format t "add-shape: ~s clip=~s~%" id clip)
+  #+nil(format t "state = ~s~%" *graphics-state*)
+  #+nil(format t "clips = ~s~%" (clipping-path *graphics-state*))
   #+nil(format t "shapes=~s~%" (shapes (image *graphics-state*)))
   #+nil(format t "current shape=~s~%" (current-shape (image *graphics-state*)))
-  (format t "dlist=~s~%" (display-list (image *graphics-state*)))
+  #+nil(format t "dlist=~s~%" (display-list (image *graphics-state*)))
 
   (let* ((fill-styles (reverse (fill-styles (image *graphics-state*))))
          (line-styles (reverse (line-styles (image *graphics-state*))))
@@ -118,7 +124,8 @@ specified dimensions."
          (name (or id (gensym "SHAPE-"))))
     (setf (current-shape image) nil)
     (multiple-value-bind (x y)
-        (funcall (transform-function *graphics-state*) 0 0)
+        (values 0 0)
+        #+nil(funcall (transform-function *graphics-state*) 0 0)
       (push (3b-swf::shape name fill-styles line-styles
                            (cons (list :move-to (cons x y)) shape)
                    0 0 (width image) (height image)
@@ -126,30 +133,39 @@ specified dimensions."
             (shapes (image *graphics-state*)))
       (if clip
           (prog1
-            (push name (paths (clipping-path *graphics-state*)))
+            (push (list name :transform (transform-matrix *graphics-state*))
+                  (paths (clipping-path *graphics-state*)))
             #+nil(push (list :clipped name (paths (clipping-path *graphics-state*)))
                   (display-list (image *graphics-state*))))
           (if (paths (clipping-path *graphics-state*))
-              (push (list :clipped name (paths (clipping-path *graphics-state*)))
+              (push (list :clipped name :paths (paths (clipping-path *graphics-state*))
+                          :transform (transform-matrix *graphics-state*))
                     (display-list (image *graphics-state*)))
-              (push (list :place name)
+              (push (list :place name :transform (transform-matrix *graphics-state*))
                     (display-list (image *graphics-state*))))))))
 
 
 (defun swf-draw-paths (state &key (stroke t) fill paths)
+  #+nil(format t "draw-paths = fill ~s, stroke ~s w=~s~%" fill stroke
+          (line-width state))
+  ;;(format t "xform = ~s ~%" (transform-matrix state))
   (let* ((image (image state))
-         (paths (mapcar (lambda (path)
+         #+nil(paths (mapcar (lambda (path)
                           (transform-path (paths:path-clone path)
                                           (transform-function state)))
                         (dash-paths (or paths
                                         (paths state))
-                                    (dash-vector state) (dash-phase state)))))
+                                    (dash-vector state) (dash-phase state))))
+         (paths (dash-paths (or paths
+                          (paths state))
+                      (dash-vector state) (dash-phase state))))
     #+nil(format t "=========================================~%")
     #+nil(format t "width=~s height=~s~%paths=~s~%"
             (width state) (height state)
             paths)
 
-    (loop for path in paths
+    (loop with has-fill = nil
+          for path in paths
           for open = (paths::path-type path)
           for stroke-id = (if stroke
                               (let* ((line-style
@@ -164,9 +180,19 @@ specified dimensions."
                                                      (line-styles image)
                                                      :key 'cddr :test 'equal)
                                                :id)))
+                                (when id
+                                  (format t "reusing linestyle ~s~%"
+                                          (find (cddr line-style)
+                                                (line-styles image)
+                                                :key 'cddr :test 'equal)))
                                 (unless id
                                   (push line-style (line-styles image))
-                                  (setf id (getf line-style :id)))
+                                  (setf id (getf line-style :id))
+                                  (format t "new linestyle ~s~%"
+                                          (find (cddr line-style)
+                                                (line-styles image)
+                                                :key 'cddr :test 'equal))
+                                  )
                                 id)
                               0)
           for fill-id = (if fill
@@ -181,6 +207,7 @@ specified dimensions."
                                                    (fill-styles image)
                                                    :key 'cddr :test 'equal)
                                              :id)))
+                              (setf has-fill t)
                               (unless id
                                   (push fill-style (fill-styles image))
                                   (setf id (getf fill-style :id)))
@@ -203,7 +230,7 @@ specified dimensions."
                                        (list :cubic-to k paths::control-points))))
                    unless prev
                    do (push (list :move-to k) (current-shape image))
-                   and do (when (eq (paths::path-type path) :closed-polyline)
+                   and do (when (or has-fill (eq (paths::path-type path) :closed-polyline))
                             (setf start op))
                    when prev
                    do (push op (current-shape image))
@@ -233,19 +260,26 @@ specified dimensions."
   ;; -could draw a rectangle covering the canvas, but that probably does
   ;;  the wrong thing if alpha isn't opaque
   ;; -probably need to just clear the display list and set bg color?
+  (break "fill-image")
   (push (list :clear-canvas :color (vecto-rgba* red green blue alpha))
         (display-list image-data)))
 
+
 (defmethod %clip-path ((state graphics-state-swf))
+  (when (current-shape (image state))
+    (add-shape (gensym "pre-clip-")))
   (let ((old (fill-color state)))
     ;;(set-rgba-fill 1 0 1 1)
-    (swf-draw-paths state :stroke t :fill t)
+    (swf-draw-paths state :stroke nil :fill t)
     (add-shape (gensym "CLIP-") :clip t)
     #+nil(setf (fill-color state) old)))
+
 (defmethod %even-odd-clip-path ((state graphics-state-swf))
+  (when (current-shape (image state))
+         (add-shape (gensym "are-clip-")))
   (let ((old (fill-color state)))
     ;;(set-rgba-fill 0 1 0 0)
-    (swf-draw-paths state :stroke t :fill t)
+    (swf-draw-paths state :stroke nil :fill t)
     (add-shape (gensym "CLIP-")  :clip t)
     #+nil(setf (fill-color state) old)))
 ;; todo: fill types (even-odd/non-zero/?)
@@ -268,14 +302,18 @@ specified dimensions."
     (intersect-clipping-paths data scratch)))
 
 
-(defun swf-set-gradient-fill (x0 y0
-                              r0 g0 b0 a0
-                              x1 y1
-                              r1 g1 b1 a1
-                              &key
-                              (extend-start t)
-                              (extend-end t)
-                              (domain-function 'linear-domain))
+(defmethod %set-gradient-fill (state
+                               x0 y0
+                               r0 g0 b0 a0
+                               x1 y1
+                               r1 g1 b1 a1
+                               &key
+                               radial
+                               (extend-start t)
+                               (extend-end t)
+                               (domain-function 'linear-domain)
+                               extended)
+  (declare (ignorable extended))
   (setf r0 (float-octet r0)
         g0 (float-octet g0)
         b0 (float-octet b0)
@@ -284,16 +322,23 @@ specified dimensions."
         g1 (float-octet g1)
         b1 (float-octet b1)
         a1 (float-octet a1))
-  (setf (fill-source *graphics-state*)
-        `(:gradient-fill ((,x0 ,y0 ,x1 ,y1)
+  (setf (fill-source state)
+        `(:gradient-fill ((,x0 ,y0 ,x1 ,y1 :type ,(if radial :radial :linear))
                           ,@(unless extend-start `((0 0 0 0)))
-                          (1 ,r0 ,g0 ,b0 ,a0)
+                          (,(if extend-start 0 1) ,r0 ,g0 ,b0 ,a0)
                           ,@(if (eq domain-function 'bilinear-domain)
-                                `((128 ,r1 ,g1 ,b1 ,a1) (254 ,r0 ,g0 ,b0 ,a0))
-                                `((254 ,r1 ,g1 ,b1 ,a1)))
+                                `((128 ,r1 ,g1 ,b1 ,a1)
+                                  (,(if extend-end 255 254) ,r0 ,g0 ,b0 ,a0))
+                                `((,(if extend-end 255 254) ,r1 ,g1 ,b1 ,a1)))
                           ,@(unless extend-end `((255 0 0 0)))))))
 
-
+(defun make-matrix (vecto-transform)
+  (vecto::matrix-bind (a b c d e f) vecto-transform
+    (let ((m (3b-swf::matrix :sx a :ry c :tx e
+                             :rx b :sy d :ty f)))
+      ;;(format t "matrix ~s -> ~s~%" vecto-transform m)
+      m))
+)
 
 
 (defun swf-sprite (id)
@@ -301,30 +346,35 @@ specified dimensions."
   (format t "swf-sprite: ~s~%" id)
   #+nil(format t "shapes=~s~%" (shapes (image *graphics-state*)))
   #+nil(format t "current shape=~s~%" (current-shape (image *graphics-state*)))
-  (format t "dlist=~s~%" (display-list (image *graphics-state*)))
+  #+nil(format t "dlist=~s~%" (display-list (image *graphics-state*)))
   (append
    (shapes (image *graphics-state*))
    (let ((tags nil))
      (loop with active-clips = nil
-           for ((op tag . args) . rest) on (display-list (image *graphics-state*))
+           for ((op tag . args) . rest) on (reverse (display-list (image *graphics-state*)))
            when (eq op :clipped)
            do;; (format t "clip ~s~%" (list op tag args))
            ;;(format t "  rest ~s~%" rest)
-           (let* ((clips (car args))
-                     (new-clips (set-difference clips active-clips)))
+           (let* ((clips (getf args :paths))
+                     (new-clips (set-difference clips active-clips
+                                                :test 'equal)))
                 (when new-clips
-                  (loop for (clip . more) on new-clips
+                  (loop for ((clip . clip-args) . more) on new-clips
                         for depth = (loop for (i nil . args) in rest
                                           while (eq i :clipped)
-                                          while (member clip (car args))
+                                          while (member clip (getf args :paths))
                                           count 1)
                         ;;do (format t "clipping path ~s layers ~s + ~s~%" clip  depth (length more))
                         do (push (3b-swf::place-object
                                   clip 0
-                                  :clip-layers (+ 1 (+ depth (length more))))
+                                  :clip-layers (+ 1 (+ depth (length more)))
+                                  :matrix (make-matrix (getf clip-args :transform))
+)
                                  tags)
                         do (setf active-clips clips))))
-           do (push tag tags))
+           do (push (3b-swf::place-object
+                     tag 0 :matrix (make-matrix (getf args :transform)))
+                    tags))
      (list (3b-swf::sprite id (reverse (list* (3b-swf::end-tag)
                                               (3b-swf::show-frame)
                                               tags)))))))

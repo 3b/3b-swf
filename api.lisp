@@ -104,7 +104,7 @@ clip-layers: if >0, use this layer as clip mask for next N higher layers
 filter-list: filter-list instance specifying filters to apply to character
 actions: clip-actions instance to specify event handlers for a sprite
 matrix, color-transform, blend-mode, cache-as-bitmap: specify params"
-  #+nil  (make-instance '%swf:place-object-3-tag
+  (make-instance '%swf:place-object-3-tag
                  '%swf:move-flag move-p
                  '%swf:depth depth
                  '%swf:class-name class-name
@@ -119,7 +119,7 @@ matrix, color-transform, blend-mode, cache-as-bitmap: specify params"
                  ;; fixme: do the values in bitmap-cache mean anything beyond zero/non-zero?
                  '%swf:bitmap-cache (if cache-as-bitmap 255 nil)
                  '%swf:clip-actions actions)
-  (make-instance '%swf:place-object-2-tag
+  #+nil(make-instance '%swf:place-object-2-tag
                  '%swf:move-flag move-p
                  '%swf:depth depth
                  '%swf:character-id id
@@ -130,8 +130,10 @@ matrix, color-transform, blend-mode, cache-as-bitmap: specify params"
                  '%swf:clip-depth clip-layers
                  '%swf:clip-actions actions))
 ;;todo: more single purpose wrappers for place-object? (move-object, etc)
-(defun place-object-at (id depth x y &key (sx 1) (sy 1))
-  (place-object id depth :matrix (matrix  :tx x :ty y :sx sx :sy sy)))
+(defun place-object-at (id depth x y &key (sx 1 has-sx) (sy 1 has-sy) move-p)
+  (if (or has-sx sy)
+      (place-object id depth :matrix (matrix  :tx x :ty y :sx sx :sy sy ) :move-p move-p)
+      (place-object id depth :matrix (translate x y) :move-p move-p)))
 
 (defun end-tag ()
   (make-instance '%swf:swf-end-tag))

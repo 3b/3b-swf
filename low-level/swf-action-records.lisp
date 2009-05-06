@@ -5,15 +5,23 @@
 (define-swf-type action-record ()
   :this-var o
   :auto
-  ((action-code (ui8) :derived (subclass-id o 'action-record)))
+  ((action-code (ui8) :derived (if (typep o 'action-record-long)
+                                   (subclass-id o 'action-record-long)
+                                   (subclass-id o 'action-record))))
   :subclass (if (< action-code #x80)
                 (subclass-from-id 'action-record action-code)
                 'action-record-long))
 
 (define-swf-type action-record-long (action-record)
   :this-var o
+  :value-var v
   :auto
-  ((action-length (ui16) :derived (- (swf-part-size o) 2)))
+  ((action-length (ui16) :derived t))
+  :writer
+  ((action-length
+    (let* ((*swf-sizer-bitpos* 0)
+           (v (- (/ (swf-part-size nil o) 8) 3)))
+      (ui16))))
   :subclass (subclass-from-id 'action-record-long (super action-code)))
 
 (define-swf-type action-record-end (action-record)

@@ -59,35 +59,38 @@
                   &key (flash-version 9)
                   (x-twips 400.0) (y-twips 300.0)
                   (frame-rate 30.0)
-                  (frame-count 1)
+                  (frame-count  (loop for i in body-tags
+                                      when (typep i '%3b-swf::swf-show-frame-tag)
+                                      count 1))
                   (attributes-tag nil)
                   (script-limits-stack 1000)
                   (script-limits-timeout 60)
                   compress)
+  (format t "frame count = ~s~%" frame-count)
   (%3b-swf::with-character-id-maps
-   (let ((%3b-swf::*partial-octet-write* nil))
+   (let ((%3b-swf::*partial-octet-write* nil)
+         (bounds (rect 0 0 x-twips y-twips))
+         (header-tags
+          (list
+           ;; flags: reserved=000, HasMetadata=1,AS3=1,res=00, UseNetwork=1
+           #+nil (or attributes-tag
+                     (file-attributes
+                      :has-metadata (find %3b-swf::+metadata-tag+
+                                          body-tags :key '%3b-swf::tag)))
+           #+nil(script-limits script-limits-timeout
+                               script-limits-stack)))
+         (end-tag (end-tag)))
      (flet
          ((body (s)
             (%3b-swf::with-swf-writers (s vvv)
-              (%3b-swf::write-swf-part '%3b-swf::rect
-                                       (rect 0 0 x-twips y-twips) s)
+              (%3b-swf::write-swf-part '%3b-swf::rect bounds s)
               (%3b-swf::write-fixed8 frame-rate stream)
               (%3b-swf::write-ui16 frame-count stream )
-              ;; flags: reserved=000, HasMetadata=1,AS3=1,res=00, UseNetwork=1
-              (%3b-swf::write-swf-part
-               nil
-               (or attributes-tag
-                   (file-attributes
-                    :has-metadata (find %3b-swf::+metadata-tag+
-                                        body-tags :key '%3b-swf::tag))) s)
-
-              (%3b-swf::write-swf-part
-               nil (script-limits script-limits-timeout
-                                  script-limits-stack) s)
-
+              (loop for tag in header-tags
+                    do (%3b-swf::write-swf-part nil tag s))
               (loop for tag in body-tags
                     do (%3b-swf::write-swf-part nil tag s))
-              (%3b-swf::write-swf-part '%3b-swf::swf-end-tag (end-tag) s)
+              (%3b-swf::write-swf-part '%3b-swf::swf-end-tag end-tag s)
 
               )))
        (%3b-swf::with-swf-writers (stream vv)
@@ -101,14 +104,19 @@
          #+nil(let ((size (+ 2 (reduce '+ body-tags :key 'swf-part-size)) ))
                 (format t "size = ~s~%" size)
                 (write-ui32 size stream))
-         (let ((size
-                (loop for tag in body-tags
-                      for i from 0
-                      for size = (%3b-swf::swf-part-size nil tag)
-                      do (format t "~s size=~s~%" i size)
-                      sum size)))
-           (format t "size = ~s~%" size)
-           (%3b-swf::write-ui32 size stream))
+         ;; 12 bytes for header
+         (let* ((%3b-swf::*swf-sizer-bitpos* (* 12 8)))
+           (%3b-swf::%swf-part-size '%3b-swf::rect bounds)
+           (loop for tag in header-tags
+                 for i from 0
+                 do (%3b-swf::%swf-part-size nil tag :body-only nil))
+           (loop for tag in body-tags
+                 for i from 0
+                 do (%3b-swf::%swf-part-size nil tag :body-only nil))
+
+           (%3b-swf::%swf-part-size nil end-tag)
+           (format t "size = ~s~%" %3b-swf::*swf-sizer-bitpos*)
+           (%3b-swf::write-ui32 (/ %3b-swf::*swf-sizer-bitpos* 8) stream))
          (if compress
              (write-sequence (salza2:compress-data
                               (flex:with-output-to-sequence (s)
@@ -364,54 +372,56 @@
    s
    (append
     (list
-     (background-color #x505080)
+     (background-color #xffffff) ;;#x027f
 
-     (frame-label "foo")
+     ;;(frame-label "foo")
 
      (make-instance
-      'define-shape-tag
-      'character-id 1
-      'bounds (rect -200 -200 200 200)
-      'shapes (make-instance
-               'shape-with-style
-               'line-styles (make-instance
-                             'line-style-array
-                             'line-styles
-                             (list (make-instance 'line-style
-                                                  'width 1
-                                                  'color (rgb 0))))
-               'fill-styles (make-instance
-                             'fill-style-array
-                             'fill-styles nil)
+      '%3b-swf::define-shape-tag
+      '%3b-swf::character-id 1
+      '%3b-swf::bounds (rect (/ -190 20) 0.5 (/ 30 20) (/ 230 20))
+      '%3b-swf::shapes (make-instance
+               '%3b-swf::shape-with-style
+               '%3b-swf::line-styles (make-instance
+                                      '%3b-swf::line-style-array
+                                      '%3b-swf::line-styles
+                                      (list (make-instance '%3b-swf::line-style
+                                                           '%3b-swf::width 1
+                                                           '%3b-swf::color (rgb 0))))
+               '%3b-swf::fill-styles (make-instance
+                                      '%3b-swf::fill-style-array
+                                      '%3b-swf::fill-styles nil)
 
-               'shape-records
+               '%3b-swf::shape-records
                (list
-                (make-instance 'style-change-shape-record
-                               'line-style 1
-                               'move-to (make-instance 'state-move-to
-                                                       'delta-x 20
-                                                       'delta-y 20))
-                (make-instance 'straight-edge-shape-record
-                               'delta-y 10)
-                (make-instance 'straight-edge-shape-record
-                               'delta-x -10)
-                (make-instance 'straight-edge-shape-record
-                               'delta-y -10)
-                (make-instance 'straight-edge-shape-record
-                               'delta-x 10)
-                (make-instance 'shape-end-record))))
+                (make-instance '%3b-swf::style-change-shape-record
+                               '%3b-swf::line-style 1
+                               '%3b-swf::move-to (make-instance
+                                                  '%3b-swf::state-move-to
+                                                  '%3b-swf::delta-x 1
+                                                  '%3b-swf::delta-y 1))
+                (make-instance '%3b-swf::straight-edge-shape-record
+                               '%3b-swf::delta-y 10)
+                (make-instance '%3b-swf::straight-edge-shape-record
+                               '%3b-swf::delta-x -10)
+                (make-instance '%3b-swf::straight-edge-shape-record
+                               '%3b-swf::delta-y -10)
+                (make-instance '%3b-swf::straight-edge-shape-record
+                               '%3b-swf::delta-x 10)
+                (make-instance '%3b-swf::shape-end-record))))
 
      #+nil
      (place-object-at 1 2 125 125)
 
-     (show-frame))
+     #+nil(show-frame))
 
     (let ((tags)
           (d 300))
       (flet ((box-in-cell (x y)
                (let ((real-x (* x 12))
                      (real-y (* y 12)))
-                 (push (place-object-at 1 (incf d) (+ 23 real-x) real-y)
+                 (push (place-object-at 1 (incf d)
+                                        (+ 0 real-x) real-y)
                        tags)
                  (push (show-frame) tags))))
         ;; GIMME AN "L"
@@ -444,7 +454,7 @@
                     (vecto::curve-test2 (+ i 234)))
           collect (place-object-at (+ i 234) (- 234 i) 40 40 :sx 2.0 :sy 2.0))
 
-    (list (vecto::test 123)
+    #+nil(list (vecto::test 123)
           #+nil(make-instance
             'define-shape-4-tag
             'character-id 123
@@ -549,11 +559,12 @@
                             (loop for (nil classname) in pngs
                                   for id from (length symbol-classes)
                                   collect (list id classname))))
-
-     (show-frame)))
-   :x-twips 250.0
-   :y-twips 250.0
-   :frame-rate 10))
+     
+     #+nil(show-frame)))
+   :x-twips 550
+   :y-twips 550
+   :frame-rate 10
+   :flash-version 10))
 
 #+nil
 (setf
@@ -635,18 +646,16 @@
      (frame-label "foo"))
 
     (let ((foo (hef-svg::render-document)))
-           foo)
-    (list
-     (place-object-at 122 122 35 35 :sx 0.2 :sy 0.2))
+      foo)
     #+nil(loop for i below 20
-          collect (place-object-at :foo (+ i 123)
-                                   (- 100 (random 200))
-                                   (- 100 (random 200))
-                                   :sx (random 1.0) :sy (random 1.0)))
+               collect (place-object-at :foo (+ i 123)
+                                        (- 100 (random 200))
+                                        (- 100 (random 200))
+                                        :sx (random 1.0) :sy (random 1.0)))
     (vecto::with-swf-canvas (:width 256 :height 256)
       (vecto::set-rgb-stroke 1 0 0)
       (vecto::set-rgb-fill 0 0 1)
-      (vecto:set-line-width 10)
+      (vecto:set-line-width 5)
       (vecto::rounded-rectangle 20 20 200 200 20 20)
       (vecto::fill-and-stroke)
       (vecto::add-shape :bar1)
@@ -662,6 +671,12 @@
       ;;(vecto::clip-path)
       (vecto::add-shape :c1)
       (vecto::swf-sprite :cbehg))
+    (vecto::star-clipping :star)
+
+
+    (list
+     #+nil(place-object-at 122 122 35 35 :sx 0.2 :sy 0.2)
+     (place-object-at 122 122 35 35 :sx 1.2 :sy 1.2))
     (list
      (place-object-at :baz 12 00 00)
      (place-object-at :bar1 13 -5 -10 :sx 0.5 :sy 0.5)
@@ -670,17 +685,17 @@
                     '%3b-swf::character-id :bar1
                     '%3b-swf::depth 15
                     '%3b-swf::clip-depth 20
-                    '%3b-swf::bitmap-cache 1
-)
+                    '%3b-swf::bitmap-cache 1)
      #+nil(make-instance '%3b-swf::place-object-3-tag
-                    '%3b-swf::character-id :bar1
-                    '%3b-swf::depth 17
-                    '%3b-swf::bitmap-cache 2
-                    '%3b-swf::blend-mode 0
-                    )
-)
-    (vecto::star-clipping :star)
+                         '%3b-swf::character-id :bar1
+                         '%3b-swf::depth 17
+                         '%3b-swf::bitmap-cache 2
+                         '%3b-swf::blend-mode 0))
     (list (place-object-at :star 16 40 40 :sx 1 :sy 1))
+
+    #+nil(list (place-object-at :baz 300 0 0 :sx 1 :sy 1)
+          (place-object-at :star 301 30 30 :sx 1 :sy 1))
+
     #+nil(list
           ;;(vecto::center-test "foo " 123)
           ;;(vecto::twittertext "foo " 20 "c:/windows/fonts/arial.ttf" 123)
@@ -695,10 +710,22 @@
           (vecto::line-styletest 125)
           (place-object-at 12c5 125 15 120 :sx 1.0 :sy 1.0))
 
-    (list (show-frame)))
+    (list (show-frame))
+
+    #+nil(loop for i from 1 below 120
+               for r = (float (/ (* pi i) 30.0) 1.0)
+               collect (place-object-at 122 122
+                                        (+ (* 20 (sin r)) 35)
+                                        (+ (* 20 (cos r)) (- 35 20))
+                                        :sx (+ 0.2 (* 0.01 (sin (* 2 r))))
+                                        :sy (+ (- 0.2 0.01) (* 0.01 (cos (* 2 r))))
+                                        :move-p t)
+               collect (show-frame))
+
+    )
    :x-twips 250.0
    :y-twips 250.0
-   :frame-rate 10
+   :frame-rate 30
    :flash-version 10)
 )
 (untrace %3b-swf::%swf-part-size)

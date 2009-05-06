@@ -479,7 +479,7 @@
                  (* (cos angle) size)))
       (even-odd-clip-path)
       (end-path-no-op)
-      (flet ((circle (distance)
+      #+nil(flet ((circle (distance)
                (set-rgba-fill distance 0 0
                               (- 1.0 distance))
                (centered-circle-path 0 0 (* size distance))
@@ -487,6 +487,14 @@
         (loop for i downfrom 1.0 by 0.05
               repeat 20 do
               (circle i)))
+
+      (set-rgb-stroke 0 1 0)
+      (set-line-width 2)
+      (set-gradient-fill 0 0   0 0 0 1
+                         (* size 1) (* 1 size)   1 0 0 0
+                         :radial t)
+      (centered-circle-path 0 0  size)
+      (fill-and-stroke)
       (add-shape 'foo)
       (vecto::swf-sprite file))))
 
@@ -523,3 +531,35 @@
     (stroke)
     (save-png file)
 ))
+
+(defun star-clipping-file (file)
+  (with-canvas (:width 200 :height 200)
+    (let ((size 100)
+          (angle 0)
+          (step (* 2 (/ (* pi 2) 5))))
+      (translate size size)
+      (move-to 0 size)
+      (dotimes (i 5)
+        (setf angle (+ angle step))
+        (line-to (* (sin angle) size)
+                 (* (cos angle) size)))
+      (even-odd-clip-path)
+      (end-path-no-op)
+      (set-rgb-stroke 0 1 0)
+      (set-line-width 2)
+      (set-gradient-fill 0 0 0 0 0 1
+                         (* size 1) (* size 1) 1 0 0 0
+                         :radial t)
+      (centered-circle-path 0 0 (* size 1))
+      (fill-and-stroke)
+      #+NIL(flet ((circle (distance)
+               (set-rgba-fill distance 0 0
+                              (- 1.0 distance))
+               (centered-circle-path 0 0 (* size distance))
+               (fill-path)))
+        (loop for i downfrom 1.0 by 0.05
+              repeat 20 do
+              (circle i)))
+      (save-png file))))
+
+(star-clipping-file "/tmp/vecto-radial.png")

@@ -27,7 +27,7 @@
     (let ((value (or (gethash id *character-id-map*)
                      (setf (gethash id *character-id-map*)
                            (incf *character-write-index*)))))
-      (format t "wrote character id ~s -> ~s~%" id value)
+      #+nil(format t "wrote character id ~s -> ~s~%" id value)
       (ui16))))
 
 #+nil(define-swf-type character-id ()

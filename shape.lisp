@@ -112,6 +112,53 @@
 
 
 
+(defun vecto-linear-gradient (x1 y1 x2 y2 colors)
+  (let* ((mx1 (/ (- x2 x1) 1638.4))
+         (my1 (/ (- y2 y1) 1638.4))
+         (mx2 (- my1))
+         (my2 mx1))
+    (make-instance '%3b-swf::fill-linear-gradient
+                   '%3b-swf::gradient-matrix
+                   (3b-swf::matrix :rx mx2 :ry my1
+                                   :sx mx1 :sy my2
+                                   :tx (abs (/ (- x2 x1) 2.0))
+                                   :ty (abs (/ (- y2 y1) 2.0)))
+                   '%3b-swf::gradient
+                   (make-instance
+                    '%3b-swf::gradient
+                    '%3b-swf::spread-mode 0
+                    '%3b-swf::interpolation-mode 0
+                    '%3b-swf::gradient-records
+                    (loop for (i r g b a) in colors
+                          collect (make-instance
+                                   '%3b-swf::grad-record
+                                   '%3b-swf::gradient-ratio i
+                                   '%3b-swf::color
+                                   (3b-swf::rgba :r r :g g :b b :a a)))))))
+
+(defun vecto-radial-gradient (cx cy rx ry colors)
+  (let* ((sx (/ (* 2 rx) 1638.4))
+         ;(/ (* (/ 2048 20)) (/ 32768 20.0)) (/ 1.0 16)
+         (sy (/ (* 2 ry) 1638.4)))
+    (format t "radial gradient... ~s,~s - ~s, ~s~% ~s~%" cx cy rx ry colors)
+    (make-instance '%3b-swf::fill-radial-gradient
+                   '%3b-swf::gradient-matrix
+                   (3b-swf::matrix :sx sx :sy sy
+                                   :tx cx
+                                   :ty cy)
+                   '%3b-swf::gradient
+                   (make-instance
+                    '%3b-swf::gradient
+                    '%3b-swf::spread-mode 0
+                    '%3b-swf::interpolation-mode 0
+                    '%3b-swf::gradient-records
+                    (loop for (i r g b a) in colors
+                          collect (make-instance
+                                   '%3b-swf::grad-record
+                                   '%3b-swf::gradient-ratio i
+                                   '%3b-swf::color
+                                   (3b-swf::rgba :r r :g g :b b :a a)))))))
+
 (defparameter *join-types*
   '(:round 0 :bevel 1 :none 1 :miter 2))
 (defparameter *end-types*
@@ -149,39 +196,21 @@ shape-data = list of shape commands:
                  (declare (ignore id))
                  (cond
                    (color
+                    ;;(setf (getf color :a) 200)
                     (make-instance
                      '%3b-swf::fill-style-solid
                      ;; todo: support more options
                      '%3b-swf::color (apply '3b-swf::rgba color)))
                    (gradient-fill
-                    (destructuring-bind ((x1 y1 x2 y2) &rest colors)
+                    (destructuring-bind ((x1 y1 x2 y2 &key type) &rest colors)
                         gradient-fill
                       (format t "grad======~s ~s - ~s ~s~%" x1 y1 x2 y2)
-                      (let* ((mx1 (/ (- x2 x1) 1638.4))
-                             (my1 (/ (- y2 y1) 1638.4))
-                             (mx2 (- my1))
-                             (my2 mx1))
-                        (make-instance
-                         '%3b-swf::fill-linear-gradient
-                         ;; todo: support more options
-                         '%3b-swf::gradient-matrix
-                         (3b-swf::matrix :rx mx2 :ry my1
-                                         :sx mx1 :sy my2
-                                         :tx (abs (/ (- x2 x1) 2.0))
-                                         :ty (abs (/ (- y2 y1) 2.0)))
+                      (ecase type
+                        ((:linear nil)
+                         (vecto-linear-gradient x1 y1 x2 y2 colors))
+                        (:radial
+                         (vecto-radial-gradient x1 y1 x2 y2 colors))))))))
 
-                         '%3b-swf::gradient
-                         (make-instance
-                          '%3b-swf::gradient
-                          '%3b-swf::spread-mode 0
-                          '%3b-swf::interpolation-mode 0
-                          '%3b-swf::gradient-records
-                          (loop for (i r g b a) in colors
-                                collect (make-instance
-                                         '%3b-swf::grad-record
-                                         '%3b-swf::gradient-ratio i
-                                         '%3b-swf::color
-                                         (3b-swf::rgba :r r :g g :b b :a a)))))))))))
              (finish-segment ()
                (if (or init-fill-styles init-line-styles)
                    (push (make-instance
@@ -223,7 +252,6 @@ shape-data = list of shape commands:
                                                               :open-polyline)
                                        '%3b-swf::color (apply '3b-swf::rgba
                                                               (getf i :color)))
-                                 
                                  #+nil(make-instance
                                   '%3b-swf::line-style
                                   ;; todo: support more options
@@ -331,11 +359,11 @@ shape-data = list of shape commands:
                                 (or (getf fill-id-map id)
                                     (add-fid id)))))
                  (push
-                  (make-instance
-                   '%3b-swf::style-change-shape-record
-                   (if invert '%3b-swf::fill-style-1
-                       '%3b-swf::fill-style-0) index
-                   )
+                  (if (not invert)
+                       (make-instance '%3b-swf::style-change-shape-record
+                                      '%3b-swf::fill-style-1 index)
+                       (make-instance '%3b-swf::style-change-shape-record
+                                      '%3b-swf::fill-style-0 index))
                   segment)))
              (add-move (nx ny)
                (push (make-instance
@@ -395,7 +423,7 @@ shape-data = list of shape commands:
                      '%3b-swf::edge-bounds (3b-swf::rect x1 y1 x2 y2)
                      '%3b-swf::uses-scaling-strokes t ;;??
                      '%3b-swf::uses-non-scaling-strokes nil ;;??
-                     '%3b-swf::uses-fill-winding-rule t
+                     '%3b-swf::uses-fill-winding-rule nil
                      '%3b-swf::shapes (make-instance
                                        '%3b-swf::shape-with-style
                                        '%3b-swf::fill-styles
