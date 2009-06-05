@@ -39,7 +39,7 @@
   ((blur-x (fixed))
    (blur-y (fixed))
    (passes (ub 5))
-   (reserved (ub 3))))
+   (reserved (ub 3) :initform 0)))
 
 (define-swf-type glow-filter (filter)
   :id 2
@@ -48,9 +48,9 @@
    (blur-x (fixed))
    (blur-y (fixed))
    (strength (fixed8))
-   (inner-glow (bit-flag))
-   (knockout (bit-flag))
-   (composite-source=1 (bit-flag))
+   (inner-glow (bit-flag) :initform nil)
+   (knockout (bit-flag) :initform nil)
+   (composite-source=1 (bit-flag) :initform t)
    (passes (ub 5))))
 
 (define-swf-type bevel-filter (filter)

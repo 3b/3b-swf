@@ -2,4 +2,18 @@
   (:use #:cl)
   (:export
    #:ymax
-   #:rect))
+   #:rect
+   #:color-transform-alpha
+   #:rotate
+   #:scale
+   #:translate
+   #:scale
+   #:matrix
+   #:matrix*
+   #:identity-matrix
+   #:transform-point
+   #:rgba
+   #:rgb
+   #:skew
+   #:color-transform-alpha-float
+   #:rgba-float))

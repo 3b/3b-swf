@@ -21,6 +21,8 @@
                   `(incf *swf-sizer-bitpos* ,bits))
                 (fb (bits)
                   `(incf *swf-sizer-bitpos* ,bits))
+                (fb8 (bits)
+                  `(incf *swf-sizer-bitpos* ,bits))
                 ,@(loop for (name bytes) in '((ui8 1)
                                               (ui16 2)
                                               (ui32 4)
@@ -201,6 +203,15 @@
               ;; fixme: is floor correct here?
               :key (lambda (x)
                      (if x (integer-length (floor (* x (expt 2 16))))
+                         0)))))
+(defun min-bitfield-size-fixed8 (&rest values)
+  "calculate min bitfield size to store all of a set of float values
+ when stored as fixed8"
+  ;; values are sign extended, so add 1 to allow space for sign bit
+  (1+ (reduce 'max values
+              ;; fixme: is floor correct here?
+              :key (lambda (x)
+                     (if x (integer-length (floor (* x (expt 2 8))))
                          0)))))
 
 

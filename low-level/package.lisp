@@ -127,4 +127,20 @@
    #:swf-end-tag
    #:named-anchor-flag
    #:frame-count
-   #:control-tags))
+   #:control-tags
+   #:cxform-with-alpha
+   #:cxform
+   #:add
+   #:mult
+   #:blur-filter
+   #:glow-filter
+   #:blur-x
+   #:blur-y
+   #:passes
+   #:inner-glow
+   #:strength
+   #:knockout
+   #:inner-glow
+   #:glow-color
+   #:filter-list
+   #:filters))

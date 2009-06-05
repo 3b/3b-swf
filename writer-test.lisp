@@ -729,3 +729,36 @@
    :flash-version 10)
 )
 (untrace %3b-swf::%swf-part-size)
+
+       gradientTransform="matrix(-2.8581916e-2,,-0.7689111,-1.7457566e-2,19.648021,-81.321825)"
+
+
+(with-open-file (s "/tmp/svg-test.swf" :direction :output :element-type '(unsigned-byte 8) :if-exists :supersede)
+  ;;(setf svg-swf::*document* (cxml:parse-file "/tmp/q.svg" (cxml-dom:make-dom-builder)))
+  ;;(setf svg-swf::*document* (cxml:parse-file "/home/bbotta/src/backup-repos/svg_/hrum_bottle.svg" (cxml-dom:make-dom-builder)))
+  ;;(setf svg-swf::*document* (cxml:parse-file "/home/bbotta/src/backup-repos/svg_/mario.svg" (cxml-dom:make-dom-builder)))
+  (setf svg-swf::*document* (cxml:parse-file "/home/bbotta/src/backup-repos/svg_/test2.svg" (cxml-dom:make-dom-builder)))
+  ;(setf svg-swf::*document* (cxml:parse-file "/tmp/q3.svg" (cxml-dom:make-dom-builder)))
+  ;;(setf svg-swf::*document* (cxml:parse-file "/tmp/q4.svg" (cxml-dom:make-dom-builder)))
+  (multiple-value-bind (doc w h)
+      (svg-swf::render-document :qqq)
+   (write-swf
+    s
+    (append
+     (list
+      (background-color #xf05080)
+      ;;(background-color #xffffff)
+
+      (frame-label "foo"))
+
+     doc
+
+     (list
+      (place-object-at :qqq 123 0 0 :sx 1.0 :sy 1.0))
+     (list (show-frame))
+     )
+    :x-twips w
+    :y-twips h
+    :frame-rate 30
+    :flash-version 10))
+)

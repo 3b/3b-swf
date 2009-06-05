@@ -171,6 +171,8 @@
                 `(/ (read-sb ,bits ,',source) 20.0))
               (fb (bits)
                 `(/ (read-sb ,bits ,',source) ,(expt 2.0 16)))
+              (fb8 (bits)
+                `(/ (read-sb ,bits ,',source) ,(expt 2.0 8)))
               ,@(loop for a in '(ui8 ui16 ui32 ui64 si8 si16 si32
                                  fixed8 fixed float16 float32 float64
                                  twips-u16 twips-s16)
@@ -232,7 +234,7 @@
                                      (and ,max-length
                                           (>= (fill-pointer octets) ,max-length)))
                            do (vector-push-extend octet octets
-                                                  (* 2 (length octets)))
+                                                  (* 2 (array-dimension octets 0)))
                            finally (return (babel:octets-to-string
                                             octets :encoding :utf-8
                                             :errorp nil))))))

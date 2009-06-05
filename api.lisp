@@ -41,8 +41,101 @@
     ((keywordp (car args))
      (destructuring-bind (&key r g b a) args
        (make-instance '%swf:rgba '%swf:r r '%swf:g g '%swf:b b '%swf:a a)))
-    (t (error "unknown args in rgb ~s" args))))
+    (t (error "unknown args in rgba ~s" args))))
 
+(defun rgba-float (r g b a)
+  (make-instance '%swf:rgba
+                 '%swf:r (max 0 (min 255 (floor (* r 255))))
+                 '%swf:g (max 0 (min 255 (floor (* g 255))))
+                 '%swf:b (max 0 (min 255 (floor (* b 255))))
+                 '%swf:a (max 0 (min 255(floor (* a 255))))))
+
+(defun color-transform-alpha (&key add multiply)
+  "add,multiply are either (r g b a) or #xaarrggbb"
+  (multiple-value-bind (ar ag ab aa)
+        (if (listp add)
+            (values-list add)
+            (values (ldb (byte 8 24) add)
+                    (ldb (byte 8 16) add)
+                    (ldb (byte 8 08) add)
+                    (ldb (byte 8 00) add)))
+    (multiple-value-bind (mr mg mb ma)
+        (if (listp multiply)
+            (values-list multiply)
+            (values (ldb (byte 8 24) multiply)
+                    (ldb (byte 8 16) multiply)
+                    (ldb (byte 8 08) multiply)
+                    (ldb (byte 8 00) multiply)))
+      (make-instance '%swf:cxform-with-alpha
+                     '%swf:add (when add (make-instance '%swf::cxform-part-rgba
+                                                   '%swf::r ar
+                                                   '%swf::g ag
+                                                   '%swf::b ab
+                                                   '%swf::a aa))
+                     '%swf:mult (when multiply
+                                  (make-instance '%swf::cxform-part-rgba
+                                                 '%swf::r mr
+                                                 '%swf::g mg
+                                                 '%swf::b mb
+                                                 '%swf::a ma))))))
+(defun color-transform-alpha-float (&key add multiply)
+  "add,multiply are (r.r g.g b.b a.a)"
+  (destructuring-bind (&optional ar ag ab aa) add
+    (destructuring-bind (&optional mr mg mb ma) multiply
+      (make-instance '%swf:cxform-with-alpha
+                     '%swf:add (when add
+                                 (make-instance '%swf::cxform-part-rgba
+                                                '%swf::r ar
+                                                '%swf::g ag
+                                                '%swf::b ab
+                                                '%swf::a aa))
+                     '%swf:mult (when multiply
+                                  (make-instance '%swf::cxform-part-rgba
+                                                 '%swf::r mr
+                                                 '%swf::g mg
+                                                 '%swf::b mb
+                                                 '%swf::a ma))))))
+
+(defun matrix* (a b)
+  (flet ((tx (m) (%swf::value1 (%swf::translate m)))
+         (ty (m) (%swf::value2 (%swf::translate m)))
+         (sx (m) (if (%swf::scale m)
+                     (%swf::value1 (%swf::scale m))
+                     1.0))
+         (sy (m) (if (%swf::scale m)
+                     (%swf::value2 (%swf::scale m))
+                     1.0))
+         (rx (m) (if (%swf::rotate-skew m)
+                     (%swf::value1 (%swf::rotate-skew m))
+                     0.0))
+         (ry (m) (if (%swf::rotate-skew m)
+                     (%swf::value2 (%swf::rotate-skew m))
+                     0.0)))
+    (let* ((a1 (sx a)) (c1 (ry a)) (e1 (tx a))
+           (b1 (rx a)) (d1 (sy a)) (f1 (ty a))
+           (a2 (sx b)) (c2 (ry b)) (e2 (tx b))
+           (b2 (rx b)) (d2 (sy b)) (f2 (ty b))
+
+           (s1 (+ (* a1 a2) (* c1 b2) (* e1 0)))
+           (r1 (+ (* b1 a2) (* d1 b2) (* f1 0)))
+           (r2 (+ (* a1 c2) (* c1 d2) (* e1 0)))
+           (s2 (+ (* b1 c2) (* d1 d2) (* f1 0)))
+           (t1 (+ (* a1 e2) (* c1 f2) (* e1 1)))
+           (t2 (+ (* b1 e2) (* d1 f2) (* f1 1)))
+
+           (s (when (not (= s1 s2 1.0))
+                (make-instance '%swf:matrix-part-fixed
+                               '%swf:value1 s1 '%swf:value2 s2)))
+           (r (when (not (= r1 r2 0.0))
+                (make-instance '%swf:matrix-part-fixed
+                               '%swf:value1 r1 '%swf:value2 r2)))
+           (tt (make-instance '%swf:matrix-part-translate
+                              '%swf:value1 t1 '%swf:value2 t2)))
+      (when (or s r (not (= t1 t2 0.0)))
+        (make-instance '%swf:matrix
+                       '%swf:rotate-skew r
+                       '%swf:scale s
+                       '%swf:translate tt)))))
 
 (defun matrix (&key tx ty sx sy rx ry)
   (make-instance
@@ -58,33 +151,51 @@
                                 '%swf:value1 sx '%swf:value2 sy))))
 
 (defun rotate (angle-deg &optional matrix)
-  (if matrix
-      (error "can't rotate matrices yet...")
-      (let ((s (sin (/ (* angle-deg pi) 180)))
-            (c (cos (/ (* angle-deg pi) 180))))
-        (make-instance
-         '%swf:matrix
-         '%swf:rotate-skew (make-instance '%swf:matrix-part-fixed
-                                          '%swf:value1 s '%swf:value2 (- s))
-         '%swf:scale (make-instance '%swf:matrix-part-fixed
-                                    '%swf:value1 c '%swf:value2 c)))))
+  (let* ((s (sin (/ (* angle-deg pi) 180)))
+         (c (cos (/ (* angle-deg pi) 180)))
+         (new
+          (make-instance
+           '%swf:matrix
+           '%swf:rotate-skew (make-instance '%swf:matrix-part-fixed
+                                            '%swf:value1 s '%swf:value2 (- s))
+           '%swf:scale (make-instance '%swf:matrix-part-fixed
+                                      '%swf:value1 c '%swf:value2 c))))
+    (if matrix
+        (matrix* matrix new)
+        new)))
 
 (defun scale (sx sy &optional matrix)
-  (if matrix
-      (error "can't scale matrices yet...")
-        (make-instance
-         '%swf:matrix
-         '%swf:scale (make-instance '%swf:matrix-part-fixed
-                                    '%swf:value1 sx '%swf:value2 sy))))
+  (let ((new (make-instance
+              '%swf:matrix
+              '%swf:scale (make-instance '%swf:matrix-part-fixed
+                                         '%swf:value1 sx '%swf:value2 sy))))
+    (if matrix
+        (matrix* matrix new)
+        new)))
 
 (defun translate (tx ty &optional matrix)
+  (let ((new (make-instance
+              '%swf:matrix
+              '%swf:translate (make-instance '%swf:matrix-part-translate
+                                             '%swf:value1 tx '%swf:value2 ty))))
+    (if matrix
+        (matrix* matrix new)
+        new)))
+
+(defun skew (sx sy &optional matrix)
+  (declare (ignore sx sy matrix))
+  (error "SKEW not implemented yet"))
+
+(defun transform-point (matrix x y)
+  (declare (ignore matrix x y))
+  (error "xform point not done yet")
+)
+;; not sure this is useful, or if it should treat identity matrix
+;; specially so it can be optimized out in the file if possible?
+(defun identity-matrix (&optional matrix)
   (if matrix
-      (progn (incf (%swf:value1 (%swf:translate matrix)) tx)
-             (incf (%swf:value2 (%swf:translate matrix)) ty))
-      (make-instance
-       '%swf:matrix
-       '%swf:translate (make-instance '%swf:matrix-part-translate
-                                      '%swf:value1 tx '%swf:value2 ty))))
+      matrix
+      (translate 0.0 0.0)))
 
 (defun background-color (&rest color)
   (make-instance '%swf:set-background-color-tag
@@ -131,7 +242,7 @@ matrix, color-transform, blend-mode, cache-as-bitmap: specify params"
                  '%swf:clip-actions actions))
 ;;todo: more single purpose wrappers for place-object? (move-object, etc)
 (defun place-object-at (id depth x y &key (sx 1 has-sx) (sy 1 has-sy) move-p)
-  (if (or has-sx sy)
+  (if (or has-sx has-sy)
       (place-object id depth :matrix (matrix  :tx x :ty y :sx sx :sy sy ) :move-p move-p)
       (place-object id depth :matrix (translate x y) :move-p move-p)))
 
@@ -204,3 +315,124 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
 ;; todo:
 ;;  symbol-class
 ;;  abc tag
+
+
+(defun solid-fill (r g b a)
+  (make-instance '%swf::fill-style-solid
+                 '%swf::color (rgba-float r g b a)))
+
+(defun linear-gradient-fill (x1 y1 x2 y2 colors transform spread)
+  (let* ((mx1 (/ (- x2 x1) 1638.4))
+         (my1 (/ (- y2 y1) 1638.4))
+         (mx2 my1)
+         (my2 (- mx1)))
+    (make-instance '%swf::fill-linear-gradient
+                   '%swf::gradient-matrix
+                   (matrix* transform
+                            (matrix :rx mx2 :ry my1
+                                    :sx mx1 :sy my2
+                                    :tx (/ (+ x2 x1) 2.0)
+                                    :ty (/ (+ y2 y1) 2.0)))
+                   '%swf::gradient
+                   (make-instance
+                    '%swf::gradient
+                    '%swf::spread-mode spread
+                    '%swf::interpolation-mode 0 ;; 0=normal,1=linear
+                    '%swf::gradient-records
+                    (loop for (i (r g b a)) in colors
+                       collect (make-instance
+                                '%swf::grad-record
+                                '%swf::gradient-ratio (floor (* i 255))
+                                '%swf::color
+                                (rgba-float r g b a)))))))
+
+(defun focal-gradient-fill (x y fx fy r colors transform spread)
+  ;; fixme: test focal point stuff more...
+  (let* ((fr (/ (sqrt (+ (expt (- fx x) 2) (expt (- fy y) 2))) r))
+         (fa (atan (- fy y) (- fx x)))
+         (sqrt2/2 (/ (sqrt 2.0) 2))
+         (x2 (+ x (* r sqrt2/2)))
+         (y2 (+ y (* r sqrt2/2)))
+         (mx1 (/ (- x2 x) 1638.4))
+         (my1 (/ (- y2 y) 1638.4))
+         (mx2 (- my1))
+         (my2 mx1)
+         (rotate (rotate (/ (* fa 180) pi))))
+    (make-instance '%swf::fill-focal-gradient
+                   '%swf::gradient-matrix
+                   (matrix*
+                    (matrix*
+                     transform
+                     (matrix :rx 0 :ry 0
+                             :sx (/ r 819.2) :sy (/ r 819.2)
+                             :tx x
+                             :ty y))
+                    rotate)
+                   '%swf::gradient
+                   (make-instance
+                    '%swf::focal-gradient
+                    '%swf::focal-point (max -1.0 (min fr 1.0))
+                    '%swf::spread-mode spread
+                    '%swf::interpolation-mode 0 ;; 0=normal,1=linear
+                    '%swf::gradient-records
+                    (loop for (i (r g b a)) in colors
+                       collect (make-instance
+                                '%swf::grad-record
+                                '%swf::gradient-ratio (floor (* 255 i))
+                                '%swf::color
+                                (rgba-float r g b a)))))))
+
+
+(defun radial-gradient-fill (x y r colors transform spread)
+  (focal-gradient-fill x y x y r colors transform spread))
+
+
+(defun fill-style (fill)
+  "fill =
+    (:solid r g b a) -- solid color
+    (:linear-gradient x0 y0 x1 y1 (stops) transform spread) -- linear gradient
+      from x0,y0 to x1,y1
+    (:radial-gradient cx cy r (stops) transform spread) -- radial gradient
+      centered at cx,cy, with radius r
+    (:focal-gradient cx cy fx fy r (stops) spread) -- focal gradient
+      centered at cx,cy, with radius r, and focal point at fx,fy
+    gradient stops:
+      list of (offset (r g b a)) where offset is 0.0 to 1.0
+"
+  (case (car fill)
+    (:solid (apply #'solid-fill (cdr fill)))
+    (:linear-gradient
+     (apply #'linear-gradient-fill (cdr fill)))
+    (:focal-gradient
+     (apply #'focal-gradient-fill (cdr fill)))
+    (:radial-gradient
+     (apply #'radial-gradient-fill (cdr fill)))
+    ;; default to fill style 0
+    (t
+     (error "unknown fill ~s" fill))))
+
+(defun line-style (width join cap fill &key open miter-limit)
+  ;;(format t "line style = ~s, ~s, ~s, ~s~%" width join cap fill)
+  (if (eq :solid (car fill))
+      (make-instance
+       '%3b-swf::line-style-2
+       '%3b-swf::width width
+       '%3b-swf::join-style join
+       '%3b-swf::start-cap-style cap
+       '%3b-swf::end-cap-style cap
+       '%3b-swf::no-close open
+       '%3b-swf::miter-limit-factor miter-limit
+       '%3b-swf::color (apply #'rgba-float (cdr fill)))
+      (make-instance
+       '%3b-swf::line-style-2
+       '%3b-swf::width (* width 1.0)
+       '%3b-swf::join-style join
+       '%3b-swf::start-cap-style cap
+       '%3b-swf::end-cap-style cap
+       '%3b-swf::no-close open
+       '%3b-swf::miter-limit-factor miter-limit
+       '%3b-swf::fill-type (fill-style fill))
+      ))
+
+
+

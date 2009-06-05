@@ -136,17 +136,25 @@
                  `(write-sb (twips->u16 ,',value-arg) ,bits ,',source))
                (fb (bits)
                  `(write-sb (floor (* ,(expt 2 16) ,',value-arg)) ,bits ,',source))
-               ,@(loop for a in '(ui8 ui16 ui32 ui64 si8 si16 si32
-                                  fixed8 fixed float16 float32 float64
-                                  twips-u16 twips-s16)
+               (fb8 (bits)
+                 `(write-sb (floor (* ,(expt 2 8) ,',value-arg)) ,bits ,',source))
+               ,@(loop for a in '(ui8 ui16 ui32 ui64
+                                  si8 si16 si32)
                        for b in '(write-ui8 write-ui16 write-ui32 write-ui64
-                                  write-si8 write-si16 write-si32
-                                  write-fixed8 write-fixed
+                                  write-si8 write-si16 write-si32)
+                       collect `(,a () `(progn
+                                          (when ,',value-arg
+                                            (,',b (floor ,',value-arg) ,',source)))))
+
+               ,@(loop for a in '(fixed8 fixed
+                                  float16 float32 float64
+                                  twips-u16 twips-s16)
+                       for b in '(write-fixed8 write-fixed
                                   write-float16 write-float32 write-float64
                                   write-twips-u16 write-twips-s16)
                        collect `(,a () `(progn
                                           (when ,',value-arg
-                                            (,',b (floor ,',value-arg) ,',source)))))
+                                            (,',b ,',value-arg ,',source)))))
                (encodedu32 ()
                  `(write-encodedu32 ,',value-arg ,',source))
                (bit-flag (&key align)

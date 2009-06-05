@@ -89,16 +89,16 @@
 (defvar *cxform-bits*)
 (define-swf-type cxform-part-rgb ()
   :auto
-  ((r (ub *cxform-bits*))
-   (g (ub *cxform-bits*))
-   (b (ub *cxform-bits*))))
+  ((r (fb8 *cxform-bits*))
+   (g (fb8 *cxform-bits*))
+   (b (fb8 *cxform-bits*))))
 
 (define-swf-type cxform-part-rgba ()
   :auto
-  ((r (ub *cxform-bits*))
-   (g (ub *cxform-bits*))
-   (b (ub *cxform-bits*))
-   (a (ub *cxform-bits*))))
+  ((r (fb8 *cxform-bits*))
+   (g (fb8 *cxform-bits*))
+   (b (fb8 *cxform-bits*))
+   (a (fb8 *cxform-bits*))))
 
 (define-swf-type cxform ()
   :auto
@@ -106,16 +106,16 @@
    (has-mult (bit-flag) :derived (not (null (mult o))))
    (nbits (ub 4) :derived (max
                            (if (has-add o)
-                               (min-bitfield-size-unsigned
+                               (min-bitfield-size-fixed8
                                         (r (add o)) (g (add o)) (b (add o)))
                                0)
                             (if (has-mult o)
-                                (min-bitfield-size-unsigned
+                                (min-bitfield-size-fixed8
                                  (r (mult o)) (g (mult o)) (b (mult o)))
                                 0)))
    (*cxform-bits* nbits :local t)
-   (add (swf-type 'cxform-part-rgb) :optional has-add)
-   (mult (swf-type 'cxform-part-rgb) :optional has-mult))
+   (add (swf-type 'cxform-part-rgb) :initform nil :optional has-add)
+   (mult (swf-type 'cxform-part-rgb) :initform nil :optional has-mult))
   :this-var o)
 
 (define-swf-type cxform-with-alpha ()
@@ -125,17 +125,17 @@
    (nbits (ub 4)
           :derived  (max
                      (if (has-add o)
-                         (min-bitfield-size-unsigned
+                         (min-bitfield-size-fixed8
                           (r (add o)) (g (add o)) (b (add o)) (a (add o)))
                          0)
                      (if (has-mult o)
-                         (min-bitfield-size-unsigned
+                         (min-bitfield-size-fixed8
                           (r (mult o)) (g (mult o)) (b (mult o)) (a (mult o)))
                          0))
 )
    (*cxform-bits* nbits :local t)
-   (add (swf-type 'cxform-part-rgba) :optional has-add)
-   (mult (swf-type 'cxform-part-rgba) :optional has-mult))
+   (add (swf-type 'cxform-part-rgba) :initform nil :optional has-add)
+   (mult (swf-type 'cxform-part-rgba) :initform nil :optional has-mult))
   :this-var o)
 
 
@@ -294,8 +294,8 @@
    (join-style (ub 2))
    ;; fixme: make sure we don't have color and fill set at once
    (has-fill (bit-flag) :derived (not (null (fill-type o))))
-   (no-h-scale (bit-flag))
-   (no-v-scale (bit-flag))
+   (no-h-scale (bit-flag) :initform nil)
+   (no-v-scale (bit-flag) :initform nil)
    (pixel-hinting-flag (bit-flag))
    (reserved (ub 5) :initform 0)
    (no-close (bit-flag))
