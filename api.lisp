@@ -434,5 +434,3 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
        '%3b-swf::fill-type (fill-style fill))
       ))
 
-
-
