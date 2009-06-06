@@ -10,13 +10,38 @@
         (*character-id-map* (make-hash-table)))
     ,@body))
 
+
+;; fallback so we don't need to check type before trying to read character-id
+(defmethod character-id (object)
+  nil)
+
+;; in order to be able to combine tags from multiple files. we rename
+;; the IDs on load, but we still want to be a ble to look things up by
+;; their original ID, so we need to track both
+(defun original-character-id (object)
+  (let ((id (character-id object)))
+    (if (listp id)
+        (second id)
+        id)))
+;; (possibly should call this character-id and rename the internal accessor?)
+(defun new-character-id (object)
+  (let ((id (character-id object)))
+    (if (listp id)
+        (first id)
+        id)))
+(defun (setf new-character-id) (value object)
+  (let ((id (character-id object)))
+    (if (listp id)
+        (setf (first id) value)
+        (setf (character-id object) (list value id)))))
+
 ;; todo: implement a macro for setting up read/write/size for simple types
 ;; and convert things like this and lists to use that instead
 (defmethod read-swf-part ((type (eql 'character-id)) source &key)
   (with-swf-readers (source)
     (let ((id (ui16)))
       (or (gethash id *character-id-map*)
-          (setf (gethash id *character-id-map*) (gensym "CHARACTER-ID-"))))))
+          (setf (gethash id *character-id-map*) (list (gensym "CHARACTER-ID-") id))))))
 
 (defmethod %swf-part-size swf-part ((type (eql 'character-id)) value &key)
   (with-swf-sizers (value)
@@ -24,9 +49,10 @@
 
 (defmethod write-swf-part swf-part ((type (eql 'character-id)) id source)
   (with-swf-writers (source value)
-    (let ((value (or (gethash id *character-id-map*)
-                     (setf (gethash id *character-id-map*)
-                           (incf *character-write-index*)))))
+    (let* ((id (if (listp id) (car id) id))
+           (value (or (gethash id *character-id-map*)
+                      (setf (gethash id *character-id-map*)
+                            (incf *character-write-index*)))))
       #+nil(format t "wrote character id ~s -> ~s~%" id value)
       (ui16))))
 

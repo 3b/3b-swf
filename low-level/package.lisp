@@ -83,7 +83,6 @@
    #:start-edges
    #:end-edges
    #:define-font-2-tag
-   #:export-assetsx-tag
    #:enable-debugger-tag
    #:do-init-action-tag
    #:define-video-stream-tag
@@ -143,4 +142,11 @@
    #:inner-glow
    #:glow-color
    #:filter-list
-   #:filters))
+   #:filters
+   #:read-swf
+   #:export-assets-tag
+   #:assets
+   #:has-character
+   #:original-character-id
+   #:new-character-id
+   #:place-object-3-tag))

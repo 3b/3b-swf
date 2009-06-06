@@ -762,3 +762,92 @@
     :frame-rate 30
     :flash-version 10))
 )
+
+
+
+
+(defparameter *foo*
+  (with-open-file (s "/tmp/kongregate-shootorial.swf"
+                     :element-type '(unsigned-byte 8))
+    (%swf:read-swf s)))
+
+(defparameter *swa* 
+  (with-open-file (s "/tmp/SmallWorld-All.swf"
+                     :element-type '(unsigned-byte 8))
+    (%swf:read-swf s)))
+
+(defparameter *foo2*
+  (with-open-file (s "/tmp/test.swf"
+                     :element-type '(unsigned-byte 8))
+    (%swf:read-swf s)))
+
+#+nil
+(format t "~{~s~%~}~%" (list-exported-tags (getf (cdr *swa*) :tags)))
+
+#+_
+(format t "~{~s~%~}~%" (loop for i in (getf (cdr *foo*) :tags)
+                          when (%swf:character-id i)
+                          collect it))
+
+#+_
+(let* ((tags (getf (cdr *foo*) :tags))
+       (tag (find-tag-by-id (find-exported-tag "Explosion" tags)
+                            tags)))
+  (format t "~%~s~%~%deps=~s~%" (%swf:control-tags tag)
+          (tag-dependencies tag tags)))
+
+#+_
+(let* ((all-tags (getf (cdr *foo*) :tags))
+       (tags (extract-tag "Explosion" all-tags :rename :foo))
+       (*print-pretty* nil))
+  (format t "~{~s~%~}~%" tags))
+
+#+_
+a
+(with-open-file (s "/tmp/test.swf" :direction :output :element-type '(unsigned-byte 8) :if-exists :supersede)
+  (write-swf
+   s
+   (append
+    (list
+     (background-color #x301018)
+     ;;(background-color #xffffff)
+
+     (frame-label "foo"))
+
+    (list
+     (shape* 1 '((:line-style 10 0 0 (:solid  1 0 0 1))
+                 (:move-to -80 -80)
+                 (:line-to 80 -80)
+                 (:line-to 80 80)
+                 (:line-to -80 80)
+                 (:line-to -80 -80)))
+     (place-object 1 1 :matrix (matrix :tx 125 :ty 125)))
+
+    (let ((all-tags (getf (cdr *foo*) :tags)))
+      (extract-tag "Explosion" all-tags :rename :qqq))
+
+    (let ((all-tags (getf (cdr *swa*) :tags)))
+      (append (extract-tag "Windmill" all-tags :rename :windmill)
+              (extract-tag "WatchTower" all-tags :rename :watchtower)))
+
+    (list
+     (place-object-at :watchtower 3 40 100 :sx 1.0 :sy 1.0)
+     (place-object-at :windmill 4 120 100 :sx 1.0 :sy 1.0)
+     (place-object-at :qqq 5 125 80 :sx 1.0 :sy 1.0)
+)
+
+    (list (show-frame))
+
+
+
+    (loop repeat 13
+       for dy from 0 by 1.22
+       for y = 80 then (+ y dy)
+       collect (place-object-at :qqq 5 125 y :move-p t)
+       collect (show-frame))
+    )
+   :x-twips 256
+   :y-twips 256
+   :frame-rate 24
+   :flash-version 10)
+  )

@@ -434,3 +434,80 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
        '%3b-swf::fill-type (fill-style fill))
       ))
 
+;; fixme: make a 'map-exported-tags' function or something to combine these?
+(defun list-exported-tags (tag-list)
+  (loop named outer
+     for tag in tag-list
+     append (typecase tag
+              (%swf:symbol-class-tag (%swf:symbol-class-symbols tag))
+              (%swf:export-assets-tag (%swf:assets tag))
+          #+nil (%swf:define-scene-and-frame-label-data-tag ...))))
+
+(defun find-exported-tag (name tag-list)
+  (loop named outer
+     for tag in tag-list
+     do (typecase tag
+          (%swf:symbol-class-tag
+           (loop for (id export-name) in (%swf:symbol-class-symbols tag)
+              when (string= name export-name)
+              do (return-from outer id)))
+          (%swf:export-assets-tag
+           (loop for (id export-name) in (%swf:assets tag)
+              when (string= name export-name)
+              do (return-from outer id)))
+          #+nil (%swf:define-scene-and-frame-label-data-tag ...))))
+
+(defmethod tag-dependencies (tag tag-list)
+  (declare (ignore tag-list))
+  (unless (or (typep tag '%swf:sound-stream-head-2-tag)
+              (typep tag '%swf:swf-show-frame-tag)
+              (typep tag '%swf:remove-object-2-tag)
+              (typep tag '%swf:swf-end-tag)
+              (typep tag '%swf:define-shape-tag)
+              (typep tag '%swf:define-shape-2-tag)
+              (typep tag '%swf:define-shape-3-tag)
+              (typep tag '%swf:define-shape-4-tag)
+              )
+    (format t "unhandled tag ~s in tag-dependencies~%" tag)))
+
+(defmethod tag-dependencies ((tag %swf:place-object-2-tag) tag-list)
+  (when (%swf:has-character tag)
+    (let ((dep (%swf:new-character-id tag)))
+      (list* dep (tag-dependencies (find-tag-by-id dep tag-list) tag-list)))))
+
+(defmethod tag-dependencies ((tag %swf:place-object-3-tag) tag-list)
+  (when (%swf:has-character tag)
+    (let ((dep (%swf:new-character-id tag)))
+      (list* dep (tag-dependencies (find-tag-by-id dep tag-list) tag-list)))))
+
+
+(defmethod tag-dependencies ((tag %swf:define-sprite-tag) tag-list)
+  (loop for i in (%swf:control-tags tag)
+     append (tag-dependencies i tag-list)))
+
+(defun find-tag-by-id (id tag-list)
+  (loop for i in tag-list
+     when (or (eql id (%swf:original-character-id i))
+              (eql id (%swf:new-character-id i)))
+     return i
+     #+nil #+nil #+nil else do (format t "looking for ~s got ~s~%" id (%swf:character-id i))))
+
+(defun extract-tag (id tag-list &key rename)
+  "extract a tag and any tags it depends on, by exported name or by id
+TAG-LIST is a list of tags as returned by READ-SWF"
+  (let* ((id (if (stringp id) (find-exported-tag id tag-list) id))
+         (tag (find-tag-by-id id tag-list))
+         (tag-deps (mapcar (lambda (x) (if (listp x) (car x) x))
+                           (tag-dependencies tag tag-list))))
+    (format t "id = ~s tag id = ~s, rename = ~s~%deps = ~s~%" 
+            id (%swf:character-id tag) rename tag-deps)
+    (when rename
+      (setf (%swf:new-character-id tag) rename))
+    (loop for i in tag-list
+       for o-id = (%swf:original-character-id i)
+       for n-id = (%swf:new-character-id i)
+       ;;do (format t " id=~s => ~s~%"  id (and id (member id tag-deps)))
+       when (or (eql o-id id) (eql n-id id)
+                (and o-id (member o-id tag-deps))
+                (and n-id (member n-id tag-deps)))
+       collect i)))
