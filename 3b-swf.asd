@@ -28,6 +28,7 @@
                                               (:file "swf-sound")
                                               (:file "swf-font")
                                               (:file "swf-tags")
+                                              (:file "swf-abc")
                                               (:file "swf-file"))
                                  :serial t)
                         (:file "package")

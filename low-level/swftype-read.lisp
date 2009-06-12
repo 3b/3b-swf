@@ -213,9 +213,11 @@
                         collect ,value
                         ;; should this quote 'end-type?
                         until (typep ,value ,end-type))))
-              (counted-list (reader count)
+              (counted-list (reader count &key align-elements)
                 `(loop repeat ,count
-                       collect ,reader))
+                    collect ,reader
+                    ,@(when align-elements
+                            '(do (align 8)))))
 
               (enumerated-list (&rest types)
                 `(list

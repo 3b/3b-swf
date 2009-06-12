@@ -8,6 +8,12 @@
 
 (defun finish-partial-write (stream)
   (when (and *partial-octet-write* (not (zerop (cdr *partial-octet-write*))))
+    #+nil(format t "flushed partial byte ~s = ~x (~s)~%"
+            (ash (car *partial-octet-write*)
+                 (- 8 (cdr *partial-octet-write*)))
+            (ash (car *partial-octet-write*)
+                 (- 8 (cdr *partial-octet-write*)))
+            *partial-octet-write*)
     (write-byte (ash (car *partial-octet-write*)
                           (- 8 (cdr *partial-octet-write*)))
                      stream))
@@ -109,13 +115,18 @@
   (write-twips-s16 2 :convert twips->u16))
 
 (defun write-encodedu32 (u32 source)
-  (error "finish this")
-  #+nil(loop with value = 0
-        for low-bit below 32 by 7
-        for octet = (read-ui8 source)
-        do (setf (ldb (byte 7 low-bit) value) octet)
-        while (logbitp 7 octet)
-        finally (return value)))
+  ;; todo: verify this is the correct algo (copied from abc code)
+  (loop
+     for i = u32 then i2
+     for i2 = (ash i -7)
+     for b = (ldb (byte 7 0) i)
+     for done = (or (= i2 0) (= i2 -1))
+     when (or (not (eql (logbitp 6 i2) (logbitp 6 i))) (not done))
+     do (setf b (logior #x80 b))
+     do (write-byte b source)
+     when (and done (logbitp 7 b))
+     do (write-byte (if (minusp i2) #x7f 0) source)
+     until done))
 
 (declaim (inline write-bit-flag))
 (defun write-bit-flag (flag source)
@@ -173,13 +184,15 @@
                           do (let ((,',value-arg ,i))
                                (declare (ignorable ,',value-arg))
                                ,type))))
-               (counted-list (type count)
+               (counted-list (type count &key align-elements)
                  (alexandria:with-gensyms (i)
                    `(progn
                       (assert (= (length ,',value-arg) ,count))
                       (loop for ,i in ,',value-arg
                             do (let ((,',value-arg ,i))
-                                 ,type)))))
+                                 ,@(when align-elements '((align 8)))
+                                 ,type
+)))))
                (list-until (type test)
                  (declare (ignore test))
                  ;; fixme: probably should verify that test hold for last element an no others
@@ -224,7 +237,7 @@
                (rest-of-tag ()
                  `(write-sequence ,',value-arg ,',source))
                (bytes-left-in-tag ()
-                 `(progn (format t "called bytes-left-in-tag during write?")
+                 `(progn (format t "called bytes-left-in-tag during write? pos = ~s~%" (file-position ,',source))
                          1))
                (next-octet-zero-p ()
                  `(progn (format t "called next-octet-zero-p during write?")

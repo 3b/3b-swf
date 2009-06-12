@@ -111,6 +111,7 @@
   (with-swf-sizers (vvvv)
       (let ((*swf-sizer-bitpos* 0)
             (vvvv nil))
+        (declare (ignorable vvvv))
         (%swf-part-size type part :body-only body-only)
         (when align (align align))
         *swf-sizer-bitpos*)))

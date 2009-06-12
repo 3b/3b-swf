@@ -44,13 +44,20 @@
 
 (define-swf-type text-record-end (text-record)
   :id 0
+  ;; add derived fields so the flags in text-record work
+  :auto
+  ((font-id (swf-type 'character-id) :optional nil :derived nil)
+   (text-color (swf-type (if (= 1 *define-text-ver*) 'rgb 'rgba))
+               :optional nil :derived nil)
+   (x-offset (si16) :optional nil :derived nil)
+   (y-offset (si16) :optional nil :derived nil))
   )
 
 (define-swf-type text-record-full (text-record)
   :id 1
   :this-var o
   :auto
-  ((font-id (ui16) :optional (super has-font))
+  ((font-id (swf-type 'character-id) :optional (super has-font))
    (text-color (swf-type (if (= 1 *define-text-ver*) 'rgb 'rgba))
                :optional (super has-color))
    (x-offset (si16) :optional (super has-x-offset))

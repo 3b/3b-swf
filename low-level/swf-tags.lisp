@@ -8,6 +8,12 @@
 (defmacro with-character-id-maps (&body body)
  `(let ((*character-write-index* 0)
         (*character-id-map* (make-hash-table)))
+    ;; 0 is special, so make sure we keep it
+    (setf (gethash 0 *character-id-map*) nil)
+    (setf (gethash nil *character-id-map*) 0)
+    ;; got some files that use -1/65535 oddly, so keep that too
+    (setf (gethash 65535 *character-id-map*) :65535)
+    (setf (gethash :65535 *character-id-map*) 65535)
     ,@body))
 
 
@@ -49,9 +55,9 @@
 
 (defmethod write-swf-part swf-part ((type (eql 'character-id)) id source)
   (with-swf-writers (source value)
-    (let* ((id (if (listp id) (car id) id))
-           (value (or (gethash id *character-id-map*)
-                      (setf (gethash id *character-id-map*)
+    (let* ((nid (if (listp id) (car id) id))
+           (value (or (gethash nid *character-id-map*)
+                      (setf (gethash nid *character-id-map*)
                             (incf *character-write-index*)))))
       #+nil(format t "wrote character id ~s -> ~s~%" id value)
       (ui16))))
@@ -128,7 +134,7 @@
   :this-var o
   :auto
   ;; fixme: intern and regenerate font IDs like character-id
-  ((font-id (ui16))
+  ((font-id (swf-type 'character-id))
    ;; this is sort of ugly, # of entries is derived from first entry,
    ;; so splitting into pieces...
    (first-offset (ui16) :derived (* 2 (length (glyph-shape-table o))))
@@ -136,7 +142,7 @@
                       :derived (loop for (i . more) on (glyph-shape-table o)
                                      when more
                                      collect (+ (first-offset o)
-                                                (swf-part-size i))))
+                                                (swf-part-size 'shape i))))
    (*shape-tag-version* 1 :local t)
    (glyph-shape-table (counted-list (swf-type 'shape) (/ first-offset 2)))))
 
@@ -151,7 +157,12 @@
    (*glyph-bits* glyph-bits :local t)
    (advance-bits (ui8))
    (*advance-bits* advance-bits :local t)
-   (text-records (list-until-type (swf-type 'text-record) 'text-record-end)))
+   ;;(text-records (list-until-type (swf-type 'text-record) 'text-record-end))
+   ;; fixme: is this right? 
+   (text-records
+    (list-until (swf-type 'text-record) (lambda (x) x (next-octet-zero-p))))
+   (end-of-records-flag (ub 8) :initform 0))
+
   )
 
 (define-swf-type do-action (swf-tag)
@@ -162,7 +173,7 @@
   :id 13
   :this-var o
   :auto
-  ((font-id (ui16))
+  ((font-id (swf-type 'character-id))
    (font-name-len (ui8))
    ;;todo: parse this to/from characters?
    (font-name (counted-list (ui8) font-name-len))
@@ -364,7 +375,7 @@
    (has-font (bit-flag) :derived (not (null (font-id o))))
    (has-font-class (bit-flag) :derived (not (null (font-class o))))
    (auto-size (bit-flag))
-   (has-layout (bit-flag) :derived (not (null (or (align o) (left-margin o)
+   (has-layout (bit-flag) :derived (not (null (or (text-align o) (left-margin o)
                                                   (right-margin o) (indent o)
                                                   (leading o)))))
    (no-select (bit-flag))
@@ -372,7 +383,7 @@
    (was-static (bit-flag))
    (html (bit-flag))
    (use-outline (bit-flag))
-   (font-id (ui16) :optional has-font)
+   (font-id (swf-type 'character-id) :optional has-font)
    (font-class (if (< *swf-version* 6)
                    ;; fixme: is this correct for all v4-5 .swf?
                    (list-until (ui8) (lambda (x) (declare (ignore x))
@@ -383,7 +394,7 @@
    (max-length (ui16) :optional has-max-length )
    ;; fixme: make sure these write out even if nil (or make sure that
    ;; setting 1 sets all of them
-   (align (ui8) :optional has-layout)
+   (text-align (ui8) :optional has-layout)
    (left-margin (ui16) :optional has-layout)
    (right-margin (ui16) :optional has-layout)
    (indent (ui16) :optional has-layout)
@@ -452,7 +463,7 @@
   :id 48
   :this-var o
   :auto
-  ((font-id (ui16))
+  ((font-id (swf-type 'character-id))
    (has-layout (bit-flag)
                :derived (not (null (or (font-ascent o) (font-descent o)
                                        (font-leading o) (font-advance-table o)
@@ -531,7 +542,7 @@
 (define-swf-type video-frame-tag (swf-tag)
   :id 61
   :auto
-  ((stream-id (ui16))
+  ((stream-id (ui16)) ;; fixme: should this be character-id?
    (frame-num (ui16))
    ;; not bothering to unpack video frames for now...
    (video-data (rest-of-tag))))
@@ -540,7 +551,7 @@
   :id 62
   :this-var o
   :auto
-  ((font-id (ui16))
+  ((font-id (swf-type 'character-id))
    (font-name-len (ui8))
    ;;todo: parse this to/from characters?
    (font-name (counted-list (ui8) font-name-len))
@@ -629,7 +640,7 @@
 (define-swf-type define-font-align-zones-tag (swf-tag)
   :id 73
   :auto
-  ((font-id (ui16))
+  ((font-id (swf-type 'character-id))
    (cms-table-hint (ub 2))
    (reserved (ub 6))
    ;; not sure if we can just read to end of tag, or if we need to look
@@ -652,7 +663,8 @@
   :id 75
   :this-var o
   :auto
-  ((font-id (ui16))
+  ;; font and character IDs seem to use same namespace
+  ((font-id (swf-type 'character-id))
    (has-layout (bit-flag)
                :derived (not (null (or (font-ascent o) (font-descent o)
                                        (font-leading o) (font-advance-table o)
@@ -672,7 +684,7 @@
    (offset-table (counted-list (if wide-offsets (ui32) (ui16)) num-glyphs))
    (code-table-offset (if wide-offsets (ui32) (ui16)))
    (*shape-tag-version* 1 :local t) ;;fixme: what is correct value?
-   (glyph-shape-table (counted-list (swf-type 'shape) num-glyphs))
+   (glyph-shape-table (counted-list (swf-type 'shape) num-glyphs :align-elements t))
    (code-table (counted-list (ui16) num-glyphs))
    (font-ascent (si16) :optional has-layout)
    (font-descent (si16) :optional has-layout)
@@ -698,15 +710,6 @@
 (define-swf-type metadata-tag (swf-tag)
   :id 77
   :auto ((metadata (string-sz-utf8))))
-
-(define-swf-type do-abc-tag (swf-tag) ;;+r?w
-  :id 82
-  :this-var o
-  :auto
-  ((flags (ui32))
-   (name (string-sz-utf8))
-   (data (rest-of-tag)))
-  :print-unreadably ("flags:~x name:~s ~d bytes" (flags o) (name o) (length (data o))))
 
 (define-swf-type define-shape-4-tag (swf-tag)
   :id 83
@@ -762,7 +765,7 @@
 (define-swf-type define-font-name-tag (swf-tag)
   :id 88
   :auto
-  ((font-id (ui16))
+  ((font-id (swf-type 'character-id))
    (font-name (string-sz-utf8))
    (font-copyright (string-sz-utf8))))
 

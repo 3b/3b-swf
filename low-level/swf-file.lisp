@@ -158,6 +158,21 @@
                    start (file-position source) size size))
           (if (member tag *trace-tags*) (untrace read-swf-part)))))))
 
+#+nil
+(defmethod write-swf-part :around (type (tag t) source)
+  (let ((size (let ((%swf::*swf-sizer-bitpos* 0))
+                (swf-part-size type tag)))
+        (start (file-position source)))
+    (prog1
+        (call-next-method type tag source)
+      (format t "wrote tag ~s, size=~s/~s (~s) ~s~%"
+               (type-of tag) (- (file-position source) start) (ash size -3)
+               (if (numberp tag) tag "") type)
+      (unless (= (- (file-position source) start) (ash size -3))
+             (error "tag ~s, size = ~s, calculated = ~s (~s)  -- (~s ~s ~s ~s)"
+                    (type-of tag )
+                    (- (file-position source) start) size (ash size -3)
+                    start (file-position source) size size)))))
 
 (defmethod %swf-part-size swf-part (type (tag swf-tag) &key body-only)
   (declare (ignore type))

@@ -62,8 +62,17 @@
                              (integer-length (length (line-styles
                                                       (line-styles o))))))))
 
-(define-swf-type shape-end-record (shape-record)
-  :auto ((junk (align 8) :local t)))
+(define-swf-type shape-end-record (style-change-or-end-shape-record)
+    :align-after 8
+    ;;:auto ((junk (align 8) :local t))
+)
+(defmethod state-new-styles ((o shape-end-record)) nil)
+(defmethod state-line-style ((o shape-end-record)) nil)
+(defmethod state-fill-style-0 ((o shape-end-record)) nil)
+(defmethod state-fill-style-1 ((o shape-end-record)) nil)
+(defmethod state-move-to ((o shape-end-record)) nil)
+
+
 
 (define-swf-type edge-shape-record (shape-record)
   :this-var o
@@ -85,8 +94,9 @@
    (general-line (bit-flag) :derived (not (or (not (delta-x o)) (zerop (delta-x o))
                                               (not (delta-y o)) (zerop (delta-y o)))))
    (vertical-line (bit-flag) :optional (not general-line)
-                  :derived (and (delta-y o) (not (zerop (delta-y o)))
-                                (or (not (delta-x o)) (zerop (delta-x o)))))
+                  :derived (or (not (delta-x o))
+                               (and (delta-y o) (not (zerop (delta-y o)))
+                                    (or (not (delta-x o)) (zerop (delta-x o))))))
    ;; fixme: set these to 0 instead of nil when missing, and adjust the
    ;; flag derives accordingly
    (delta-x (sb-twips (+ 2 num-bits)) :initform 0 :optional (or general-line (not vertical-line)))

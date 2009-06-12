@@ -30,13 +30,14 @@
                        do (setf (aref data i j) pel))
               (loop for i below pad do (incf zi)))
         data))
+
 (defmacro make-bitmap-sizer (bytes-per-pel v)
   `(let* ((w (array-dimension ,v 0))
           (h (array-dimension ,v 1))
           (pad (mod (- 4 (mod (* w ,bytes-per-pel) 4)) 4))
           (octet-count 0))
      (align 8)
-     (error "bitmap sizer not done yet")
+     ;;(error "bitmap sizer not done yet")
      (salza2:with-compressor (c 'salza2:zlib-compressor
                                 :callback (lambda (buffer end)
                                             (declare (ignore buffer))
@@ -44,31 +45,38 @@
        (loop for j below h
              do (loop for i below w
                       for pel = (aref ,v i j)
-                      do (loop for p upto ,bytes-per-pel
+                      do (loop for p below ,bytes-per-pel
                                do (salza2:compress-octet
                                    (ldb (byte 8 (* p 8)) pel) c)))
              (loop for i below pad
                    do (salza2:compress-octet 0 c))))
+     ;;(format t "sizEd bitmap, w=~s,h=~s, pad=~s, octets=~s~%" w h pad octet-count)
      (ub (* octet-count 8))))
+
 (defmacro make-bitmap-writer (bytes-per-pel v)
   `(let* ((w (array-dimension ,v 0))
           (h (array-dimension ,v 1))
           (pad (mod (- 4 (mod (* w ,bytes-per-pel) 4)) 4)))
      (align 8)
-     (error "bitmap writer not done yet")
+     ;(format t "starting bitmap write, w=~s,h=~s, pad=~s~%" w h pad)
+     ;(bytes-left-in-tag)
+     ;;(error "bitmap writer not done yet")
      (salza2:with-compressor (c 'salza2:zlib-compressor
                                 :callback (lambda (buffer end)
                                             (loop for i below end
-                                                  for j across buffer
-                                                  do (let ((v j))
+                                               for j across buffer
+                                               do (let ((,v j))
                                                        (ui8)))))
        (loop for j below h
-             do (loop for i below w
-                      for pel = (aref ,v i j)
-                      do (loop for p upto ,bytes-per-pel
-                               do (salza2:compress-octet
+          do (loop for i below w
+                   for pel = (aref ,v i j)
+                      do (loop for p below ,bytes-per-pel
+                            do (salza2:compress-octet
                                    (ldb (byte 8 (* p 8)) pel) c)))
-             (loop for i below pad do (salza2:compress-octet 0 c))))))
+            (loop for i below pad do (salza2:compress-octet 0 c))))
+     ;(format t "done bitmap write..~%")
+     ;(bytes-left-in-tag)
+     ))
 ;;; modified version of bitmapdata/colormapdata/etc to contain size/format
 ;;;   instead of leaving it in tag
 

@@ -53,25 +53,25 @@
 
 (define-swf-type morph-fill-repeating-bitmap-fill (morph-fill-style)
   :id #x40
-  :auto ((bitmap-id (ui16))
+  :auto ((bitmap-id (swf-type 'character-id))
          (start-bitmap-matrix (swf-type 'matrix))
          (end-bitmap-matrix (swf-type 'matrix))))
 
 (define-swf-type morph-fill-clipped-bitmap-fill (morph-fill-style)
   :id #x41
-  :auto ((bitmap-id (ui16))
+  :auto ((bitmap-id (swf-type 'character-id))
          (start-bitmap-matrix (swf-type 'matrix))
          (end-bitmap-matrix (swf-type 'matrix))))
 
 (define-swf-type morph-fill-non-smoothed-repeating-bitmap-fill (morph-fill-style)
   :id #x42
-  :auto ((bitmap-id (ui16))
+  :auto ((bitmap-id (swf-type 'character-id))
          (start-bitmap-matrix (swf-type 'matrix))
          (end-bitmap-matrix (swf-type 'matrix))))
 
 (define-swf-type morph-fill-non-smoothed-clipped-bitmap-fill (morph-fill-style)
   :id #x43
-  :auto ((bitmap-id (ui16))
+  :auto ((bitmap-id (swf-type 'character-id))
          (start-bitmap-matrix (swf-type 'matrix))
          (end-bitmap-matrix (swf-type 'matrix))))
 

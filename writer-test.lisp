@@ -559,7 +559,7 @@
                             (loop for (nil classname) in pngs
                                   for id from (length symbol-classes)
                                   collect (list id classname))))
-     
+
      #+nil(show-frame)))
    :x-twips 550
    :y-twips 550
@@ -765,21 +765,51 @@
 
 
 
+#+_
+(let ((%swf::*blob-tags* (list))
+      (%swf::*trace-tags* (list)))
+ (defparameter *foo*
+   (with-open-file (s "/tmp/kongregate-shootorial.swf"
+                      :element-type '(unsigned-byte 8))
+     (%swf:read-swf s))))
 
-(defparameter *foo*
-  (with-open-file (s "/tmp/kongregate-shootorial.swf"
-                     :element-type '(unsigned-byte 8))
-    (%swf:read-swf s)))
-
-(defparameter *swa* 
+#+_
+(defparameter *swa*
   (with-open-file (s "/tmp/SmallWorld-All.swf"
                      :element-type '(unsigned-byte 8))
     (%swf:read-swf s)))
-
+#+_
 (defparameter *foo2*
   (with-open-file (s "/tmp/test.swf"
                      :element-type '(unsigned-byte 8))
     (%swf:read-swf s)))
+
+#+_
+(let ((%swf::*trace-tags* (list )))
+  (defparameter *ks*
+    (with-open-file (s "/tmp/shoot.swf"
+                       :element-type '(unsigned-byte 8))
+      (%swf:read-swf s))))
+#+_
+(let ((%swf::*trace-tags* (list )))
+  (defparameter *ks2*
+    (with-open-file (s "/tmp/stest.swf"
+                       :element-type '(unsigned-byte 8))
+      (%swf:read-swf s))))
+#+_
+(untrace %swf:read-swf-part)
+
+#+_
+(time
+ (with-open-file (s "/tmp/stest.swf" :direction :output :element-type '(unsigned-byte 8) :if-exists :supersede)
+   (write-swf
+    s
+    (getf (cdr *foo*) :tags)
+    :x-twips 600
+    :y-twips 300
+    :frame-rate 30
+    :flash-version 9)
+   ))
 
 #+nil
 (format t "~{~s~%~}~%" (list-exported-tags (getf (cdr *swa*) :tags)))
@@ -803,7 +833,6 @@
   (format t "~{~s~%~}~%" tags))
 
 #+_
-a
 (with-open-file (s "/tmp/test.swf" :direction :output :element-type '(unsigned-byte 8) :if-exists :supersede)
   (write-swf
    s

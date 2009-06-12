@@ -2,6 +2,23 @@
 
 ;;; low level .swf types
 
+(defun size-encodedu32 (u32)
+  ;; todo: verify this is the correct algo (copied from abc code)
+  ;; fixme: calculate directly from integer-length instead of using loop
+  (let ((s (loop
+              for i = u32 then i2
+              for i2 = (ash i -7)
+              for b = (ldb (byte 7 0) i)
+              for done = (or (= i2 0) (= i2 -1))
+              when (or (not (eql (logbitp 6 i2) (logbitp 6 i))) (not done))
+              do (setf b (logior #x80 b))
+              sum 8
+              when (and done (logbitp 7 b))
+              sum 8
+              until done)))
+    (incf *swf-sizer-bitpos* s)
+    s))
+
 ;;; macros for calculating size of an object
 (defvar *swf-sizer-bitpos*)
 (defmacro with-swf-sizers ((value-arg) &body body)
@@ -43,7 +60,7 @@
                                                (align 8)
                                                (incf *swf-sizer-bitpos* ,',(* 8 bytes))))))
                 (encodedu32 ()
-                  `(error "encoded32 sizer not done yet..."))
+                  `(size-encodedu32 ,',value-arg))
                 (bit-flag (&key align)
                   `(progn
                      ,@(when align `((align ,align)))
@@ -59,14 +76,15 @@
                            do (let ((,',value-arg ,i))
                                 (declare (ignorable ,',value-arg))
                                 ,type))))
-                (counted-list (type count)
+                (counted-list (type count &key align-elements)
                   (alexandria:with-gensyms (i)
                     `(progn
                        (assert (= (length ,',value-arg) ,count))
                        (loop for ,i in ,',value-arg
                              do (let ((,',value-arg ,i))
                                   (declare (ignorable ,',value-arg))
-                                  ,type)))))
+                                  ,type
+                                  ,@(when align-elements '((align 8))))))))
                 (list-until (type test)
                   (declare (ignore test))
                   ;; fixme: probably should verify that test hold for last element an no others
@@ -107,7 +125,7 @@
                 (zlib-data ()
                   `(progn
                      (align 8)
-                     (incd *swf-sizer-bitpos*
+                     (incf *swf-sizer-bitpos*
                            (* 8 (length (salza2:compress-data ,',value-arg 'salza2:zlib-compressor))))))
                 (rest-of-tag ()
                   `(incf *swf-sizer-bitpos*
