@@ -55,74 +55,7 @@
 ;;(untrace %swf-part-size)
 ;;(untrace read-swf-part)
 
-(defun write-swf (stream body-tags
-                  &key (flash-version 9)
-                  (x-twips 400.0) (y-twips 300.0)
-                  (frame-rate 30.0)
-                  (frame-count  (loop for i in body-tags
-                                      when (typep i '%3b-swf::swf-show-frame-tag)
-                                      count 1))
-                  (attributes-tag nil)
-                  (script-limits-stack 1000)
-                  (script-limits-timeout 60)
-                  compress)
-  (format t "frame count = ~s~%" frame-count)
-  (%3b-swf::with-character-id-maps
-   (let ((%3b-swf::*partial-octet-write* nil)
-         (bounds (rect 0 0 x-twips y-twips))
-         (header-tags
-          (list
-           ;; flags: reserved=000, HasMetadata=1,AS3=1,res=00, UseNetwork=1
-           #+nil (or attributes-tag
-                     (file-attributes
-                      :has-metadata (find %3b-swf::+metadata-tag+
-                                          body-tags :key '%3b-swf::tag)))
-           #+nil(script-limits script-limits-timeout
-                               script-limits-stack)))
-         (end-tag (end-tag)))
-     (flet
-         ((body (s)
-            (%3b-swf::with-swf-writers (s vvv)
-              (%3b-swf::write-swf-part '%3b-swf::rect bounds s)
-              (%3b-swf::write-fixed8 frame-rate stream)
-              (%3b-swf::write-ui16 frame-count stream )
-              (loop for tag in header-tags
-                    do (%3b-swf::write-swf-part nil tag s))
-              (loop for tag in body-tags
-                    do (%3b-swf::write-swf-part nil tag s))
-              (%3b-swf::write-swf-part '%3b-swf::swf-end-tag end-tag s)
-
-              )))
-       (%3b-swf::with-swf-writers (stream vv)
-         ;; magic #, version
-         (if compress
-             (%3b-swf::write-ui8 #x43 stream)
-             (%3b-swf::write-ui8 #x46 stream)) ;F/C
-         (%3b-swf::write-ui8 #x57 stream)      ;W
-         (%3b-swf::write-ui8 #x53 stream)      ;S
-         (%3b-swf::write-ui8 flash-version stream)
-         #+nil(let ((size (+ 2 (reduce '+ body-tags :key 'swf-part-size)) ))
-                (format t "size = ~s~%" size)
-                (write-ui32 size stream))
-         ;; 12 bytes for header
-         (let* ((%3b-swf::*swf-sizer-bitpos* (* 12 8)))
-           (%3b-swf::%swf-part-size '%3b-swf::rect bounds)
-           (loop for tag in header-tags
-                 for i from 0
-                 do (%3b-swf::%swf-part-size nil tag :body-only nil))
-           (loop for tag in body-tags
-                 for i from 0
-                 do (%3b-swf::%swf-part-size nil tag :body-only nil))
-
-           (%3b-swf::%swf-part-size nil end-tag)
-           (format t "size = ~s~%" %3b-swf::*swf-sizer-bitpos*)
-           (%3b-swf::write-ui32 (/ %3b-swf::*swf-sizer-bitpos* 8) stream))
-         (if compress
-             (write-sequence (salza2:compress-data
-                              (flex:with-output-to-sequence (s)
-                                (body s)) 'salza2:zlib-compressor)
-                             stream)
-             (body stream)))))))
+;;;;;; write-swf moved to api.lisp
 
 
 #+nil

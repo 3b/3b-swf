@@ -17,6 +17,13 @@
                  '%swf:max-recursion-depth max-recursion
                  '%swf:script-timeout-seconds timeout))
 
+(defun export-assets (exports)
+  (make-instance '%swf:export-assets-tag
+                 '%swf:assets exports))
+
+(defun symbol-class-tag (exports)
+  (make-instance '%swf:symbol-class-tag
+                 '%swf:symbol-class-symbols exports))
 
 (defun rgb (&rest args)
   (cond
@@ -353,8 +360,8 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
          (sqrt2/2 (/ (sqrt 2.0) 2))
          (x2 (+ x (* r sqrt2/2)))
          (y2 (+ y (* r sqrt2/2)))
-         (mx1 (/ (- x2 x) 1638.4))
-         (my1 (/ (- y2 y) 1638.4))
+         ;;(mx1 (/ (- x2 x) 1638.4))
+         ;;(my1 (/ (- y2 y) 1638.4))
          (mx2 (- my1))
          (my2 mx1)
          (rotate (rotate (/ (* fa 180) pi))))
@@ -459,6 +466,7 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
 
 (defmethod tag-dependencies (tag tag-list)
   (declare (ignore tag-list))
+  ;; todo: remove this once all the tags with dependencies are handled..
   (unless (or (typep tag '%swf:sound-stream-head-2-tag)
               (typep tag '%swf:swf-show-frame-tag)
               (typep tag '%swf:remove-object-2-tag)
@@ -486,11 +494,11 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
      append (tag-dependencies i tag-list)))
 
 (defun find-tag-by-id (id tag-list)
-  (loop for i in tag-list
-     when (or (eql id (%swf:original-character-id i))
-              (eql id (%swf:new-character-id i)))
-     return i
-     #+nil #+nil #+nil else do (format t "looking for ~s got ~s~%" id (%swf:character-id i))))
+  (loop for i in (if (listp id) id (list id))
+     do (loop for tag in tag-list
+           when (or (eql i (%swf:original-character-id tag))
+                    (eql i (%swf:new-character-id tag)))
+           return tag)))
 
 (defun extract-tag (id tag-list &key rename)
   "extract a tag and any tags it depends on, by exported name or by id
@@ -511,3 +519,73 @@ TAG-LIST is a list of tags as returned by READ-SWF"
                 (and o-id (member o-id tag-deps))
                 (and n-id (member n-id tag-deps)))
        collect i)))
+
+
+(defun write-swf (stream body-tags
+                  &key (flash-version 9)
+                  (x-twips 400.0) (y-twips 300.0)
+                  (frame-rate 30.0)
+                  (frame-count  (loop for i in body-tags
+                                      when (typep i '%3b-swf::swf-show-frame-tag)
+                                      count 1))
+                  (attributes-tag nil)
+                  (script-limits-stack 1000)
+                  (script-limits-timeout 60)
+                  compress)
+  (format t "framewriting swf,  count = ~s~%" frame-count)
+  (%3b-swf::with-character-id-maps
+   (let ((%3b-swf::*partial-octet-write* nil)
+         (bounds (rect 0 0 x-twips y-twips))
+         (header-tags
+          (list
+           ;; flags: reserved=000, HasMetadata=1,AS3=1,res=00, UseNetwork=1
+           #+nil (or attributes-tag
+                     (file-attributes
+                      :has-metadata (find %3b-swf::+metadata-tag+
+                                          body-tags :key '%3b-swf::tag)))
+           #+nil(script-limits script-limits-timeout
+                               script-limits-stack)))
+         (end-tag (end-tag)))
+     (flet
+         ((body (s)
+            (%3b-swf::with-swf-writers (s vvv)
+              (%3b-swf::write-swf-part '%3b-swf::rect bounds s)
+              (%3b-swf::write-fixed8 frame-rate stream)
+              (%3b-swf::write-ui16 frame-count stream )
+              (loop for tag in header-tags
+                    do (%3b-swf::write-swf-part nil tag s))
+              (loop for tag in body-tags
+                    do (%3b-swf::write-swf-part nil tag s))
+              (%3b-swf::write-swf-part '%3b-swf::swf-end-tag end-tag s)
+
+              )))
+       (%3b-swf::with-swf-writers (stream vv)
+         ;; magic #, version
+         (if compress
+             (%3b-swf::write-ui8 #x43 stream)
+             (%3b-swf::write-ui8 #x46 stream)) ;F/C
+         (%3b-swf::write-ui8 #x57 stream)      ;W
+         (%3b-swf::write-ui8 #x53 stream)      ;S
+         (%3b-swf::write-ui8 flash-version stream)
+         #+nil(let ((size (+ 2 (reduce '+ body-tags :key 'swf-part-size)) ))
+                (format t "size = ~s~%" size)
+                (write-ui32 size stream))
+         ;; 12 bytes for header
+         (let* ((%3b-swf::*swf-sizer-bitpos* (* 12 8)))
+           (%3b-swf::%swf-part-size '%3b-swf::rect bounds)
+           (loop for tag in header-tags
+                 for i from 0
+                 do (%3b-swf::%swf-part-size nil tag :body-only nil))
+           (loop for tag in body-tags
+                 for i from 0
+                 do (%3b-swf::%swf-part-size nil tag :body-only nil))
+
+           (%3b-swf::%swf-part-size nil end-tag)
+           (format t "size = ~s~%" %3b-swf::*swf-sizer-bitpos*)
+           (%3b-swf::write-ui32 (/ %3b-swf::*swf-sizer-bitpos* 8) stream))
+         (if compress
+             (write-sequence (salza2:compress-data
+                              (flex:with-output-to-sequence (s)
+                                (body s)) 'salza2:zlib-compressor)
+                             stream)
+             (body stream)))))))

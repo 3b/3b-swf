@@ -16,4 +16,12 @@
    #:rgb
    #:skew
    #:color-transform-alpha-float
-   #:rgba-float))
+   #:rgba-float
+   #:symbol-class-tag
+   #:export-assets
+   #:write-swf
+   #:background-color
+   #:show-frame
+   #:frame-label
+   #:file-attributes
+   #:script-limits))

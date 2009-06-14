@@ -6,7 +6,7 @@
 (defvar *character-id-map*)
 (defvar *character-write-index*)
 (defmacro with-character-id-maps (&body body)
- `(let ((*character-write-index* 0)
+ `(let ((*character-write-index* 1)
         (*character-id-map* (make-hash-table)))
     ;; 0 is special, so make sure we keep it
     (setf (gethash 0 *character-id-map*) nil)
@@ -50,7 +50,9 @@
           (setf (gethash id *character-id-map*) (list (gensym "CHARACTER-ID-") id))))))
 
 (defmethod %swf-part-size swf-part ((type (eql 'character-id)) value &key)
-  (with-swf-sizers (value)
+  ;; don't use actual value since nil is valid here, but (ui16) return
+  ;; 0 size for nil
+  (with-swf-sizers (0)
     (ui16)))
 
 (defmethod write-swf-part swf-part ((type (eql 'character-id)) id source)
@@ -209,9 +211,8 @@
 (define-swf-type define-button-sound (swf-tag)
   :id 17
   :auto
-  ;; fixme: separate namespace for button and characters?
   ((button-id (swf-type 'character-id))
-   (button-sound-char-0 (ui16))
+   (button-sound-char-0 (ui16)) ;; fixme: are these character-id ?
    (button-sound-info-0 (swf-type 'sound-info)
                         :optional (not (zerop button-sound-char-0)))
    (button-sound-char-1 (ui16))
@@ -503,9 +504,12 @@
 
 (define-swf-type export-assets-tag (swf-tag)
   :id 56
+  :this-var o
   :auto
-  ((asset-count (ui16))
-   (assets (counted-list (enumerated-list (ui16) (string-sz-utf8)) asset-count))))
+  ((asset-count (ui16) :derived (length (assets o)))
+   (assets (counted-list (enumerated-list (swf-type 'character-id)
+                                          (string-sz-utf8))
+                         asset-count))))
 
 #+untested
 (define-swf-type import-assets-tag (swf-tag)
@@ -513,7 +517,7 @@
   :auto
   ((url (string-sz-utf8))
    (asset-count (ui16))
-   (assets (counted-list (enumerated-list (ui16) (string-sz-utf8)) asset-count))))
+   (assets (counted-list (enumerated-list (swf-type 'character-id) (string-sz-utf8)) asset-count))))
 
 (define-swf-type enable-debugger-tag (swf-tag)
   :id 58
@@ -635,7 +639,7 @@
    (reserved (ui8) :derived 1)
    (reserved2 (ui8) :derived 0)
    (asset-count (ui16))
-   (assets (counted-list (enumerated-list (ui16) (string-sz-utf8)) asset-count))))
+   (assets (counted-list (enumerated-list (swf-type 'character-id) (string-sz-utf8)) asset-count))))
 
 (define-swf-type define-font-align-zones-tag (swf-tag)
   :id 73
@@ -703,8 +707,9 @@
   :auto
   ((num-symbols (ui16) :derived (length (symbol-class-symbols o)))
    ;; { (tag u16) (name string) } *num-symbols
-   (symbol-class-symbols (counted-list (enumerated-list (ui16) (string-sz-utf8))
-                                        num-symbols)))
+   (symbol-class-symbols (counted-list (enumerated-list (swf-type 'character-id)
+                                                        (string-sz-utf8))
+                                       num-symbols)))
   :print-unreadably ("~s" (symbol-class-symbols o)))
 
 (define-swf-type metadata-tag (swf-tag)
@@ -760,7 +765,12 @@
    (frames (counted-list (enumerated-list (encodedu32) (string-sz-utf8))
                          frame-label-count))))
 
-;;    87 define-binary-data-tag
+(define-swf-type define-binary-data-tag (swf-tag)
+  :id 87
+  :auto
+  ((character-id (swf-type 'character-id))
+   (reserved=0 (ui32) :initform 0)
+   (data (rest-of-tag))))
 
 (define-swf-type define-font-name-tag (swf-tag)
   :id 88
