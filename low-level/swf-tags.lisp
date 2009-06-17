@@ -175,7 +175,7 @@
   :id 13
   :this-var o
   :auto
-  ((font-id (swf-type 'character-id))
+  ((character-id (swf-type 'character-id))
    (font-name-len (ui8))
    ;;todo: parse this to/from characters?
    (font-name (counted-list (ui8) font-name-len))
@@ -192,7 +192,7 @@
   :id 14
   :this-var o
   :auto
-  ((sound-id (swf-type 'character-id)) ;; fixme: separate namespaces for sound/character IDs?
+  ((character-id (swf-type 'character-id)) ;; fixme: separate namespaces for sound/character IDs?
    (sound-format (ub 4))
    (sound-rate (ub 2)) ;0=5.5khz,1=11k,2=22,3=44
    (16bit (bit-flag))  ;; else 8 bit
@@ -200,18 +200,18 @@
    (sound-sample-count (ui32))
    (sound-data (rest-of-tag)))
   :print-unreadably ("id:~s format:~s rate=~s 16b=~s stereo=~s count=~s"
-                     (sound-id o) (sound-format o) (sound-rate o)
+                     (character-id o) (sound-format o) (sound-rate o)
                      (16bit o) (stereo o) (sound-sample-count o)))
 
 (define-swf-type start-sound-tag (swf-tag)
   :id 15
-  :auto ((sound-id (swf-type 'character-id))
+  :auto ((character-id (swf-type 'character-id))
          (sound-info (swf-type 'sound-info))))
 
 (define-swf-type define-button-sound (swf-tag)
   :id 17
   :auto
-  ((button-id (swf-type 'character-id))
+  ((character-id (swf-type 'character-id))
    (button-sound-char-0 (ui16)) ;; fixme: are these character-id ?
    (button-sound-info-0 (swf-type 'sound-info)
                         :optional (not (zerop button-sound-char-0)))
@@ -288,10 +288,10 @@
    (has-ratio (bit-flag) :derived (not (null (po2-ratio o))))
    (has-color-transform (bit-flag) :derived (not (null (color-transform o))))
    (has-matrix (bit-flag) :derived (not (null (matrix o))))
-   (has-character (bit-flag) :derived (not (null (character-id o))))
+   (has-character (bit-flag) :derived (not (null (place-character-id o))))
    (move-flag (bit-flag))
    (depth (ui16))
-   (character-id (swf-type 'character-id) :optional  has-character)
+   (place-character-id (swf-type 'character-id) :optional  has-character)
    (matrix (swf-type 'matrix) :optional has-matrix)
    (color-transform (swf-type 'cxform-with-alpha) :optional has-color-transform)
    (po2-ratio (ui16) :optional has-ratio)
@@ -332,7 +332,7 @@
   :id 34
   :auto
   ((*define-button-ver* 2 :local t)
-   (button-id (swf-type 'character-id))
+   (character-id (swf-type 'character-id))
    (reserved-flags (ub 7))
    (track-as-menu (bit-flag))
    (action-offset (ui16))
@@ -555,7 +555,7 @@
   :id 62
   :this-var o
   :auto
-  ((font-id (swf-type 'character-id))
+  ((character-id (swf-type 'character-id))
    (font-name-len (ui8))
    ;;todo: parse this to/from characters?
    (font-name (counted-list (ui8) font-name-len))
@@ -608,7 +608,7 @@
    (has-ratio (bit-flag) :derived (not (null (po3-ratio o))))
    (has-color-transform (bit-flag) :derived (not (null (color-transform o))))
    (has-matrix (bit-flag) :derived (not (null (matrix o))))
-   (has-character (bit-flag) :derived (not (null (character-id o))))
+   (has-character (bit-flag) :derived (not (null (place-character-id o))))
    (move-flag (bit-flag))
    (reserved3=0 (ub 3) :initform 0)
    (has-image (bit-flag) :initform nil) ;; fixme: derive this?
@@ -619,7 +619,7 @@
    (depth (ui16))
    ;; is the logic for this right?
    (class-name (string-sz-utf8) :optional  has-class-name)
-   (character-id (swf-type 'character-id) :optional has-character)
+   (place-character-id (swf-type 'character-id) :optional has-character)
    (matrix (swf-type 'matrix) :optional has-matrix)
    (color-transform (swf-type 'cxform-with-alpha) :optional has-color-transform)
    (po3-ratio (ui16) :optional has-ratio)
@@ -644,7 +644,7 @@
 (define-swf-type define-font-align-zones-tag (swf-tag)
   :id 73
   :auto
-  ((font-id (swf-type 'character-id))
+  ((character-id (swf-type 'character-id))
    (cms-table-hint (ub 2))
    (reserved (ub 6))
    ;; not sure if we can just read to end of tag, or if we need to look
@@ -655,7 +655,7 @@
 (define-swf-type csm-text-settings-tag (swf-tag)
   :id 74
   :auto
-  ((text-id (swf-type 'character-id))
+  ((character-id (swf-type 'character-id))
    (use-flash-type (ub 2))
    (grid-fit (ub 3))
    (reserved (ub 3))
@@ -668,7 +668,7 @@
   :this-var o
   :auto
   ;; font and character IDs seem to use same namespace
-  ((font-id (swf-type 'character-id))
+  ((character-id (swf-type 'character-id))
    (has-layout (bit-flag)
                :derived (not (null (or (font-ascent o) (font-descent o)
                                        (font-leading o) (font-advance-table o)
@@ -775,7 +775,7 @@
 (define-swf-type define-font-name-tag (swf-tag)
   :id 88
   :auto
-  ((font-id (swf-type 'character-id))
+  ((character-id (swf-type 'character-id))
    (font-name (string-sz-utf8))
    (font-copyright (string-sz-utf8))))
 

@@ -226,7 +226,7 @@ matrix, color-transform, blend-mode, cache-as-bitmap: specify params"
                  '%swf:move-flag move-p
                  '%swf:depth depth
                  '%swf:class-name class-name
-                 '%swf:character-id id
+                 '%swf:place-character-id id
                  '%swf:matrix matrix
                  '%swf:color-transform color-transform
                  '%swf:po3-ratio ratio
@@ -240,7 +240,7 @@ matrix, color-transform, blend-mode, cache-as-bitmap: specify params"
   #+nil(make-instance '%swf:place-object-2-tag
                  '%swf:move-flag move-p
                  '%swf:depth depth
-                 '%swf:character-id id
+                 '%swf:place-character-id id
                  '%swf:matrix matrix
                  '%swf:color-transform color-transform
                  '%swf:po2-ratio ratio
@@ -467,6 +467,7 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
 (defmethod tag-dependencies (tag tag-list)
   (declare (ignore tag-list))
   ;; todo: remove this once all the tags with dependencies are handled..
+  (assert tag)
   (unless (or (typep tag '%swf:sound-stream-head-2-tag)
               (typep tag '%swf:swf-show-frame-tag)
               (typep tag '%swf:remove-object-2-tag)
@@ -475,17 +476,18 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
               (typep tag '%swf:define-shape-2-tag)
               (typep tag '%swf:define-shape-3-tag)
               (typep tag '%swf:define-shape-4-tag)
+              (typep tag '%swf:define-font-3-tag)
               )
     (format t "unhandled tag ~s in tag-dependencies~%" tag)))
 
 (defmethod tag-dependencies ((tag %swf:place-object-2-tag) tag-list)
   (when (%swf:has-character tag)
-    (let ((dep (%swf:new-character-id tag)))
+    (let ((dep (%swf:place-character-id tag)))
       (list* dep (tag-dependencies (find-tag-by-id dep tag-list) tag-list)))))
 
 (defmethod tag-dependencies ((tag %swf:place-object-3-tag) tag-list)
   (when (%swf:has-character tag)
-    (let ((dep (%swf:new-character-id tag)))
+    (let ((dep (%swf:place-character-id tag)))
       (list* dep (tag-dependencies (find-tag-by-id dep tag-list) tag-list)))))
 
 
@@ -493,12 +495,27 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
   (loop for i in (%swf:control-tags tag)
      append (tag-dependencies i tag-list)))
 
+(defmethod tag-dependencies ((tag %swf:define-text-tag) tag-list)
+  (loop for i in (%swf:text-records tag)
+     for id = (%swf:font-id i)
+     for tag = (find-tag-by-id id tag-list)
+     unless tag do (format t "id=~s not found? tag=~s~%" id tag)
+     when tag
+     append (tag-dependencies tag
+                              tag-list)))
+
+(defmethod tag-dependencies ((tag %swf:define-edit-text-tag) tag-list)
+  (let ((f (%swf:font-id tag)))
+    (when f (tag-dependencies (find-tag-by-id f tag-list) tag-list))))
+
 (defun find-tag-by-id (id tag-list)
   (loop for i in (if (listp id) id (list id))
+     ;;do (format t "looking for id ~s~%" i)
      do (loop for tag in tag-list
+           ;;do (format t "  checking ~s / ~s~%" (%swf:original-character-id tag)  (%swf:new-character-id tag))
            when (or (eql i (%swf:original-character-id tag))
                     (eql i (%swf:new-character-id tag)))
-           return tag)))
+           do (return-from find-tag-by-id tag))))
 
 (defun extract-tag (id tag-list &key rename)
   "extract a tag and any tags it depends on, by exported name or by id
@@ -515,7 +532,7 @@ TAG-LIST is a list of tags as returned by READ-SWF"
        for o-id = (%swf:original-character-id i)
        for n-id = (%swf:new-character-id i)
        ;;do (format t " id=~s => ~s~%"  id (and id (member id tag-deps)))
-       when (or (eql o-id id) (eql n-id id)
+       when (or (eql i tag)
                 (and o-id (member o-id tag-deps))
                 (and n-id (member n-id tag-deps)))
        collect i)))

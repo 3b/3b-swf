@@ -57,7 +57,9 @@
                        source :tag tag initargs)
                 (apply 'read-swf-part (subclass-from-id 'swf-tag tag) source :tag tag initargs))
           (if (member tag *trace-tags*) (untrace read-swf-part))
-          (when *trace-tags* (format t "<<done tag ~s left=~s~%" (getf *tag-id-plist* tag) (bytes-left-in-tag)))
+          (when *trace-tags*
+            (format t "<<done tag ~s left=~s~%"
+                    (getf *tag-id-plist* tag) (bytes-left-in-tag)))
           ;; adjust for buggy files (and reader bugs) by always skipping to
           ;; the end of a tag after a read
           (when (not (zerop (bytes-left-in-tag)))

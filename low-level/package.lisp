@@ -254,4 +254,7 @@
    #:ns
    #:abc-multiname
    #:abc-multiname
-   #:ns-set))
+   #:ns-set
+   #:font-id
+   #:text-records
+   #:place-character-id))

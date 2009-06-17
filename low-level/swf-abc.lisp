@@ -302,7 +302,7 @@
    (type-name (swf-type 'abc-interned-multiname))
    (value (swf-type 'abc-interned-value+optional-kind-constant))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
-                   :optional (has-metadata-p o))
+                   :optional (super has-metadata-p))
    (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
              :initform nil)))
 
@@ -315,7 +315,7 @@
    (type-name (swf-type 'abc-interned-multiname))
    (value (swf-type 'abc-interned-value+optional-kind-constant))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
-                   :optional (has-metadata-p o))
+                   :optional (super has-metadata-p))
    (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
              :initform nil)))
 
@@ -327,7 +327,7 @@
   ((slot-id (swf-type 'abc-u30) :initform 0)
    (method-name (swf-type 'abc-interned-method-name))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
-                   :optional (has-metadata-p o))
+                   :optional (super has-metadata-p))
    (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
              :initform nil)))
 
@@ -338,7 +338,7 @@
   ((slot-id (swf-type 'abc-u30) :initform 0)
    (method-name (swf-type 'abc-interned-method-name))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
-                   :optional (has-metadata-p o))
+                   :optional (super has-metadata-p))
    (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
              :initform nil)))
 
@@ -349,7 +349,7 @@
   ((slot-id (swf-type 'abc-u30) :initform 0)
    (method-name (swf-type 'abc-interned-method-name))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
-                   :optional (has-metadata-p o))
+                   :optional (super has-metadata-p))
    (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
              :initform nil)))
 
@@ -360,7 +360,7 @@
   ((slot-id (swf-type 'abc-u30) :initform 0)
    (class-name (swf-type 'abc-interned-class-name))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
-                   :optional (has-metadata-p o))
+                   :optional (super has-metadata-p))
    (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
              :initform nil)))
 
@@ -371,7 +371,7 @@
   ((slot-id (swf-type 'abc-u30) :initform 0)
    (function-name (swf-type 'abc-interned-function-name))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
-                   :optional (has-metadata-p o))
+                   :optional (super has-metadata-p))
    (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
              :initform nil)))
 

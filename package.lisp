@@ -24,4 +24,5 @@
    #:show-frame
    #:frame-label
    #:file-attributes
-   #:script-limits))
+   #:script-limits
+   #:place-character-id))
