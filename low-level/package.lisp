@@ -257,4 +257,21 @@
    #:ns-set
    #:font-id
    #:text-records
-   #:place-character-id))
+   #:place-character-id
+   #:shapes
+   #:fill-styles
+   #:line-styles
+   #:shape-records
+   #:fill-style
+   #:fill-repeating-bitmap-fill
+   #:bitmap-id
+   #:fill-clipped-bitmap-fill
+   #:fill-non-smoothed-clipped-bitmap-fill
+   #:fill-non-smoothed-repeating-bitmap-fill
+   #:fill-clipped-bitmap-fill
+   #:has-fill
+   #:line-style-2
+   #:line-style
+   #:fill-type
+   #:shape-record
+   #:style-change-shape-record))

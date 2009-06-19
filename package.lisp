@@ -25,4 +25,8 @@
    #:frame-label
    #:file-attributes
    #:script-limits
-   #:place-character-id))
+   #:place-character-id
+   #:sprite
+   #:sprite*
+   #:place-object
+   #:extract-tags))

@@ -472,13 +472,11 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
               (typep tag '%swf:swf-show-frame-tag)
               (typep tag '%swf:remove-object-2-tag)
               (typep tag '%swf:swf-end-tag)
-              (typep tag '%swf:define-shape-tag)
-              (typep tag '%swf:define-shape-2-tag)
-              (typep tag '%swf:define-shape-3-tag)
-              (typep tag '%swf:define-shape-4-tag)
               (typep tag '%swf:define-font-3-tag)
+              (typep tag '%swf:define-sound-tag)
               )
-    (format t "unhandled tag ~s in tag-dependencies~%" tag)))
+    (format t "unhandled tag ~s in tag-dependencies~%" tag))
+  nil)
 
 (defmethod tag-dependencies ((tag %swf:place-object-2-tag) tag-list)
   (when (%swf:has-character tag)
@@ -506,7 +504,57 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
 
 (defmethod tag-dependencies ((tag %swf:define-edit-text-tag) tag-list)
   (let ((f (%swf:font-id tag)))
-    (when f (tag-dependencies (find-tag-by-id f tag-list) tag-list))))
+    (when f (cons f (tag-dependencies (find-tag-by-id f tag-list) tag-list)))))
+
+;; need to check for bitmap fills in define-shape :/
+(defmethod tag-dependencies ((tag %swf:define-shape-tag) tag-list)
+  (tag-dependencies (%swf:shapes tag) tag-list))
+(defmethod tag-dependencies ((tag %swf:define-shape-2-tag) tag-list)
+  (tag-dependencies (%swf:shapes tag) tag-list))
+(defmethod tag-dependencies ((tag %swf:define-shape-3-tag) tag-list)
+  (tag-dependencies (%swf:shapes tag) tag-list))
+(defmethod tag-dependencies ((tag %swf:define-shape-4-tag) tag-list)
+  (tag-dependencies (%swf:shapes tag) tag-list))
+
+(defmethod tag-dependencies ((tag %swf:shape-with-style) tag-list)
+  (nconc (loop for i in (%swf:fill-styles (%swf:fill-styles tag))
+              append (tag-dependencies i tag-list))
+         (loop for i in (%swf:line-styles (%swf:line-styles tag))
+            append (tag-dependencies i tag-list))
+         (loop for i in (%swf:shape-records tag)
+            append (tag-dependencies i tag-list))))
+
+(defmethod tag-dependencies ((tag %swf:fill-style) tag-list)
+  nil)
+
+(defmethod tag-dependencies ((tag %swf:fill-repeating-bitmap-fill) tag-list)
+  (list (%swf:bitmap-id tag)))
+(defmethod tag-dependencies ((tag %swf:fill-clipped-bitmap-fill) tag-list)
+  (list (%swf:bitmap-id tag)))
+(defmethod tag-dependencies ((tag %swf:fill-non-smoothed-repeating-bitmap-fill)
+                             tag-list)
+  (list (%swf:bitmap-id tag)))
+(defmethod tag-dependencies ((tag %swf:fill-non-smoothed-clipped-bitmap-fill)
+                             tag-list)
+  (list (%swf:bitmap-id tag)))
+
+(defmethod tag-dependencies ((tag %swf:line-style) tag-list)
+  nil)
+(defmethod tag-dependencies ((tag %swf:line-style-2) tag-list)
+  (if (%swf:has-fill tag)
+      (tag-dependencies (%swf:fill-type tag) tag-list)))
+
+(defmethod tag-dependencies ((tag %swf:shape-record) tag-list)
+  nil)
+(defmethod tag-dependencies ((tag %swf:style-change-shape-record) tag-list)
+  (nconc (when (%swf:fill-styles tag)
+           (loop for i in (%swf:fill-styles (%swf:fill-styles tag))
+              append (tag-dependencies i tag-list)))
+         (when (%swf:line-styles tag)
+           (loop for i in (%swf:line-styles (%swf:line-styles tag))
+              append (tag-dependencies i tag-list)))))
+
+
 
 (defun find-tag-by-id (id tag-list)
   (loop for i in (if (listp id) id (list id))
@@ -535,6 +583,32 @@ TAG-LIST is a list of tags as returned by READ-SWF"
        when (or (eql i tag)
                 (and o-id (member o-id tag-deps))
                 (and n-id (member n-id tag-deps)))
+       collect i)))
+
+(defun extract-tags (id-list tag-list)
+  "like EXTRACT-TAG, but avoids duplicating tags (for exaple when
+ dependencies are reused)
+ID-LIST is a list of either tag IDs, or lists of (tag-id rename-id)
+where the tag matching TAG-ID will be renamed to RENAME-ID"
+  (let ((deps (loop
+                 for %id in id-list
+                 for id = (let ((i (if (consp %id) (first %id) %id)))
+                            (if (stringp i) (find-exported-tag i tag-list) i))
+                 for rename = (if (consp %id) (second %id))
+                 for tag = (find-tag-by-id id tag-list)
+                 unless tag
+                 do (format t "no tag? %id=~s id=~s ren=~s~%" %id id rename )
+                 when rename
+                 do (setf (%swf:new-character-id tag) rename)
+                 append (mapcar (lambda (x)
+                                  (if (listp x) (car x) x))
+                                (tag-dependencies tag tag-list))
+                 collect (or rename id))))
+    (loop for i in tag-list
+       for o-id = (%swf:original-character-id i)
+       for n-id = (%swf:new-character-id i)
+       when (or (and o-id (member o-id deps))
+                (and n-id (member n-id deps)))
        collect i)))
 
 
