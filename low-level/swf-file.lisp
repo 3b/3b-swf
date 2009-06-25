@@ -90,7 +90,7 @@
                   (incf *blobs*)
                   (when *show-blobs*
                     (format t "read blob tag :~%;; ~s (~s) = ~s bytes~%"
-                            (getf *tag-id-plist* (super :tag)) (super :tag)
+                            (getf *tag-id-plist* (super tag)) (super tag)
                             (length blob))))))
   :print-unreadably ("tag:~d blob:~d bytes" (or (getf *tag-id-plist* (tag o))
                                                 (tag o)) (length (blob o))))

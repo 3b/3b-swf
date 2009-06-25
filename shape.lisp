@@ -617,9 +617,9 @@ shape-data = list of shape commands:
                        x0 (min x x0)
                        x1 (max x x1))
                  (/ dx 20.0)))
-             (x ()
+             #+nil(x ()
                (/ x 20.0))
-             (y ()
+             #+nil(y ()
                (/ y 20.0))
              (dy (ny)
                (let* ((nyt (truncate ny 0.05))
@@ -704,7 +704,7 @@ shape-data = list of shape commands:
                      (add-line x (+ y wy))
                      (add-line x y))))
 
-             (deg (x) ;; just for debugging
+             #+nil(deg (x) ;; just for debugging
                (* 180 (/ x pi)))
 
              (add-ellipse* (cx cy rx ry phi theta1 theta2 x1 y1 x2 y2)
