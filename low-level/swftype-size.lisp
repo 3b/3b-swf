@@ -2,6 +2,8 @@
 
 ;;; low level .swf types
 
+(defvar *swf-sizer-bitpos*)
+
 (defun size-encodedu32 (u32)
   ;; todo: verify this is the correct algo (copied from abc code)
   ;; fixme: calculate directly from integer-length instead of using loop
@@ -20,7 +22,6 @@
     s))
 
 ;;; macros for calculating size of an object
-(defvar *swf-sizer-bitpos*)
 (defmacro with-swf-sizers ((value-arg) &body body)
   ;; sizer accessors just update the bit pos, which is intended to be
   ;; bound by a method specialized on t
