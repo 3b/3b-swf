@@ -1,5 +1,8 @@
 (in-package :%3b-swf)
 
+(define-swf-type swf-end-tag (swf-tag)
+  :id 0)
+
 (define-swf-type swf-show-frame-tag (swf-tag)
   :id 1)
 

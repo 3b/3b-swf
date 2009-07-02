@@ -95,9 +95,6 @@
   :print-unreadably ("tag:~d blob:~d bytes" (or (getf *tag-id-plist* (tag o))
                                                 (tag o)) (length (blob o))))
 
-(define-swf-type swf-end-tag (swf-tag)
-  :id 0)
-
 
 (defparameter *trace-count* nil)
 (defun read-swf-file-body (source)
