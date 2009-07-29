@@ -462,6 +462,9 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
            (loop for (id export-name) in (%swf:assets tag)
               when (string= name export-name)
               do (return-from outer id)))
+          (%swf:do-abc-tag
+           (when (string= (%swf:name tag) name)
+             (return-from outer tag)))
           #+nil (%swf:define-scene-and-frame-label-data-tag ...))))
 
 (defmethod tag-dependencies (tag tag-list)
@@ -561,6 +564,8 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
      ;;do (format t "looking for id ~s~%" i)
      do (loop for tag in tag-list
            ;;do (format t "  checking ~s / ~s~%" (%swf:original-character-id tag)  (%swf:new-character-id tag))
+           when (typep id '%swf:swf-tag)
+           do (return-from find-tag-by-id id)
            when (or (eql i (%swf:original-character-id tag))
                     (eql i (%swf:new-character-id tag)))
            do (return-from find-tag-by-id tag))))
@@ -598,7 +603,7 @@ where the tag matching TAG-ID will be renamed to RENAME-ID"
                  for tag = (find-tag-by-id id tag-list)
                  unless tag
                  do (format t "no tag? %id=~s id=~s ren=~s~%" %id id rename )
-                 when rename
+                 when (and rename (consp tag))
                  do (setf (%swf:new-character-id tag) rename)
                  append (mapcar (lambda (x)
                                   (if (listp x) (car x) x))
@@ -608,7 +613,8 @@ where the tag matching TAG-ID will be renamed to RENAME-ID"
        for o-id = (%swf:original-character-id i)
        for n-id = (%swf:new-character-id i)
        when (or (and o-id (member o-id deps))
-                (and n-id (member n-id deps)))
+                (and n-id (member n-id deps))
+                (member i deps))
        collect i)))
 
 

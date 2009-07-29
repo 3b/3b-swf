@@ -3,11 +3,14 @@
 (defconstant +swf-end-tag+ 0)
 (defconstant +metadata-tag+ 77)
 
+;; extra tag IDs from http://www.m2osw.com/en/swf_alexref.html#table_of_swf_tags
+
 ;; mapping from id -> name
 (defparameter *tag-id-plist*
   '(0  end-tag
     1  show-frame-tag
     2  define-shape-tag
+    ;;3 free-character ?
     4  place-object-tag
     5  remove-object-tag
     6  define-bits-tag
@@ -20,6 +23,7 @@
     13 define-font-info-tag
     14 define-sound-tag
     15 start-sound-tag
+    ;;16 stop-sound ?
     17 define-button-sound-tag
     18 sound-stream-head-tag
     19 sound-stream-block-tag
@@ -28,19 +32,31 @@
     22 define-shape-2-tag
     23 define-button-cxform-tag
     24 protect-tag
+    ;;25 paths-are-postscript ?
     26 place-object-2-tag
     28 remove-object-2-tag
+    ;;29 sync-frame ?
+    ;;31 free-all ?
     32 define-shape-3-tag
     33 define-text-2-tag
     34 define-button-2-tag
     35 define-bits-jpeg-3-tag
     36 define-bits-lossless-2-tag
     37 define-edit-text-tag
+    ;;38 define-video ?
     39 define-sprite-tag
+    ;;40 name-character ?
+    41 product-info-tag
+    ;;42 define-text-format ?
     43 frame-label-tag
     45 sound-stream-head-2-tag
     46 define-morph-shape-tag
+    ;;47 generate-frame ?
     48 define-font-2-tag
+    ;;49 generator-command
+    ;;50 define-command-object ?
+    ;;51 character-set ?
+    ;;52 external-font ?
     56 export-assets-tag
     57 import-assets-tag
     58 enable-debugger-tag
@@ -48,12 +64,14 @@
     60 define-video-stream-tag
     61 video-frame-tag
     62 define-font-info-2-tag
+    63 debug-id-tag
     64 enable-debugger-2-tag
     65 script-limits-tag
     66 set-tab-index-tag
     69 file-attributes-tag
     70 place-object-3-tag
     71 import-assets-2-tag
+    ;; 72 do-abc
     73 define-font-align-zones-tag
     74 csm-text-settings-tag
     75 define-font-3-tag

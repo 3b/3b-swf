@@ -415,6 +415,16 @@
    (control-tags (list-until (swf-type 'swf-tag)
                              (lambda (x)
                                (typep x 'swf-end-tag))))))
+(define-swf-type product-info-tag (swf-tag)
+  :id 41
+  :auto
+  ((product-id (ui32))
+   (edition (ui32))
+   (major-version (ui8))
+   (minor-version (ui8))
+   (build-number (ui64))
+   (compilation-date (ui64))))
+
 
 (define-swf-type frame-label-tag (swf-tag) ;;+rw
   :id 43
@@ -571,6 +581,14 @@
    (wide-codes (bit-flag))
    (language-code (ui8))
    (code-table (sized-list (if wide-codes (ui16) (ui8)) (bytes-left-in-tag)))))
+
+
+
+(define-swf-type debug-id-tag (swf-tag)
+  ;; based on http://www.m2osw.com/en/swf_alexref.html#tag_debugid
+  :id 63
+  :auto ((uuid (rest-of-tag))))
+
 
 #+untested
 (define-swf-type enable-debugger-2 (swf-tag)

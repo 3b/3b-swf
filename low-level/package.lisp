@@ -274,4 +274,8 @@
    #:line-style
    #:fill-type
    #:shape-record
-   #:style-change-shape-record))
+   #:style-change-shape-record
+   #:option-count
+   #:options
+   #:param-count
+   #:method-id))

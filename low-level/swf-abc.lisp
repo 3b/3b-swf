@@ -96,7 +96,8 @@
   (alias abc-interned-method-name abc-u30)
   (alias abc-interned-class-name abc-u30)
   (alias abc-interned-function-name abc-u30)
-  (alias abc-interned-class-name abc-u30))
+  (alias abc-interned-class-name abc-u30)
+  (alias abc-interned-metadata abc-u30))
 
 ;;;; implement similar to character IDs?
 ;;(define-swf-type abc-interned-string ()
@@ -206,17 +207,20 @@
   :this-var o
   :auto
   ((integer-count (swf-type 'abc-u30+1) :derived (length (integers o))
-                  :extra (format t "integers = ~s~%" integer-count))
+                  ;:extra (format t "integers = ~s~%" integer-count)
+                  )
    (integers (counted-list (swf-type 'abc-s32) integer-count))
 
    (unsigned-integer-count (swf-type 'abc-u30+1)
                            :derived (length (unsigned-integers o))
-                           :extra (format t "uintegers = ~s~%" unsigned-integer-count))
+                           ;:extra (format t "uintegers = ~s~%" unsigned-integer-count)
+                           )
 
    (unsigned-integers (counted-list (swf-type 'abc-u32) unsigned-integer-count))
 
    (double-count (swf-type 'abc-u30+1) :derived (length (doubles o))
-                 :extra (format t "doubles = ~s~%" double-count))
+                 ;:extra (format t "doubles = ~s~%" double-count)
+                 )
    (doubles (counted-list (float64) double-count))
 
    (string-count (swf-type 'abc-u30+1) :derived (length (strings o)))
@@ -291,7 +295,7 @@
    ;; now.
    (kind (ub 4) :derived (subclass-id o 'abc-trait-info)))
   ;; (metadata-count (swf-type 'abc-u30) :derived (length (metadata o)))
-  ;; (metadata (counted-list (swf-type 'interned-metadata) metadata-count))
+  ;; (metadata (counted-list (swf-type 'abc-interned-metadata) metadata-count))
   :subclass (subclass-from-id 'abc-trait-info kind))
 
 (define-swf-type abc-trait-info-slot (abc-trait-info)
@@ -303,7 +307,7 @@
    (value (swf-type 'abc-interned-value+optional-kind-constant))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
                    :optional (super has-metadata-p))
-   (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
+   (metadata (counted-list (swf-type 'abc-interned-metadata) metadata-count)
              :initform nil)))
 
 (define-swf-type abc-trait-info-constant (abc-trait-info)
@@ -316,7 +320,7 @@
    (value (swf-type 'abc-interned-value+optional-kind-constant))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
                    :optional (super has-metadata-p))
-   (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
+   (metadata (counted-list (swf-type 'abc-interned-metadata) metadata-count)
              :initform nil)))
 
 ;; fixme: can method/getter/setter be combined?
@@ -325,10 +329,10 @@
   :this-var o
   :auto
   ((slot-id (swf-type 'abc-u30) :initform 0)
-   (method-name (swf-type 'abc-interned-method-name))
+   (method-id (swf-type 'abc-u30))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
                    :optional (super has-metadata-p))
-   (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
+   (metadata (counted-list (swf-type 'abc-interned-metadata) metadata-count)
              :initform nil)))
 
 (define-swf-type abc-trait-info-getter (abc-trait-info)
@@ -336,10 +340,10 @@
   :this-var o
   :auto
   ((slot-id (swf-type 'abc-u30) :initform 0)
-   (method-name (swf-type 'abc-interned-method-name))
+   (method-id (swf-type 'abc-u30))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
                    :optional (super has-metadata-p))
-   (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
+   (metadata (counted-list (swf-type 'abc-interned-metadata) metadata-count)
              :initform nil)))
 
 (define-swf-type abc-trait-info-setter (abc-trait-info)
@@ -347,10 +351,10 @@
   :this-var o
   :auto
   ((slot-id (swf-type 'abc-u30) :initform 0)
-   (method-name (swf-type 'abc-interned-method-name))
+   (method-id (swf-type 'abc-u30))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
                    :optional (super has-metadata-p))
-   (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
+   (metadata (counted-list (swf-type 'abc-interned-metadata) metadata-count)
              :initform nil)))
 
 (define-swf-type abc-trait-info-class (abc-trait-info)
@@ -361,7 +365,7 @@
    (class-name (swf-type 'abc-interned-class-name))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
                    :optional (super has-metadata-p))
-   (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
+   (metadata (counted-list (swf-type 'abc-interned-metadata) metadata-count)
              :initform nil)))
 
 (define-swf-type abc-trait-info-function (abc-trait-info)
@@ -372,7 +376,7 @@
    (function-name (swf-type 'abc-interned-function-name))
    (metadata-count (swf-type 'abc-u30) :derived (length (metadata o))
                    :optional (super has-metadata-p))
-   (metadata (counted-list (swf-type 'interned-metadata) metadata-count)
+   (metadata (counted-list (swf-type 'abc-interned-metadata) metadata-count)
              :initform nil)))
 
 (define-swf-type abc-instance-info ()
