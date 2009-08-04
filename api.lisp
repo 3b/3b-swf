@@ -603,8 +603,9 @@ where the tag matching TAG-ID will be renamed to RENAME-ID"
                  for tag = (find-tag-by-id id tag-list)
                  unless tag
                  do (format t "no tag? %id=~s id=~s ren=~s~%" %id id rename )
-                 when (and rename (consp tag))
+                 when (and rename (consp (%swf:character-id tag)))
                  do (setf (%swf:new-character-id tag) rename)
+                 else do (format t "not renaming ~s to ~s~%" tag rename)
                  append (mapcar (lambda (x)
                                   (if (listp x) (car x) x))
                                 (tag-dependencies tag tag-list))
