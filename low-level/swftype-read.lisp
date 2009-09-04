@@ -99,7 +99,10 @@
 (defun read-sb (count source) ;; read unaligned bits into signed int
   (u->s count (read-bits count source)))
 
-(ieee-floats:make-float-converters encode-float16 decode-float16 5 10 nil)
+(ieee-floats:make-float-converters encode-float16 decode-float16 5 10 t)
+;; we redefine these instead of using defaults so we can support nan/inf
+(ieee-floats:make-float-converters encode-float32 decode-float32 8 23 t)
+(ieee-floats:make-float-converters encode-float64 decode-float64 11 52 t)
 
 (defmacro make-byte-readers (endian &body specs)
   `(progn
@@ -138,8 +141,8 @@
   (read-fixed8 2 :convert u16->fixed8)
   (read-fixed 4 :convert u32->fixed)
   (read-float16 2 :convert decode-float16)
-  (read-float32 4 :convert ieee-floats:decode-float32)
-  (read-float64 8 :convert ieee-floats:decode-float64)
+  (read-float32 4 :convert decode-float32)
+  (read-float64 8 :convert decode-float64)
   (read-twips-u16 2 :convert u16->twips)
   (read-twips-s16 2 :convert s16->twips))
 

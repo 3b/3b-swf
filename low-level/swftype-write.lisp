@@ -109,8 +109,8 @@
   (write-fixed8 2 :convert fixed8->u16)
   (write-fixed 4 :convert fixed->u32)
   (write-float16 2 :convert encode-float16)
-  (write-float32 4 :convert ieee-floats:encode-float32)
-  (write-float64 8 :convert ieee-floats:encode-float64)
+  (write-float32 4 :convert encode-float32)
+  (write-float64 8 :convert encode-float64)
   (write-twips-u16 2 :convert twips->u16)
   (write-twips-s16 2 :convert twips->u16))
 
