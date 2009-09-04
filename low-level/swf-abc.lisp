@@ -203,6 +203,15 @@
   :auto
   ((ns-set (swf-type 'abc-interned-namespace-set))))
 
+;; see http://blog.richardszalay.com/2009/02/generics-vector-in-avm2.html
+(define-swf-type abc-multiname-generic (abc-multiname)
+  :id #x1d
+  :this-var o
+  :auto
+  ((type-name (swf-type 'abc-interned-multiname))
+   (param-count (swf-type 'abc-u30) :derived (length (params o)))
+   (params (counted-list (swf-type 'abc-interned-multiname) param-count))))
+
 (define-swf-type abc-constant-pool ()
   :this-var o
   :auto
