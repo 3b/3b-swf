@@ -16,6 +16,7 @@
                                               (:file "swftype-size")
                                               (:file "swftype-read")
                                               (:file "swftype-write")
+                                              (:file "swf-primitive-types")
                                               (:file "swf-deftype")
                                               (:file "swf-action-records")
                                               (:file "generics")

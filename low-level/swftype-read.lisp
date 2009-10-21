@@ -161,132 +161,20 @@
 (defmacro with-swf-readers ((source)
                                &body body)
   ;; todo: allow setting byte order for bitfields
-  `(macrolet ((align (bits)
-                `(read-align-source ,bits ,',source))
-              (ub (bits &key align)
-                `(progn
-                   (check-end ,',source)
-                   ,@(when align `((align ,align)))
-                   (read-ub ,bits ,',source)))
-              (sb (bits)
-                `(read-sb ,bits ,',source))
-              (sb-twips (bits)
-                `(/ (read-sb ,bits ,',source) 20.0))
-              (fb (bits)
-                `(/ (read-sb ,bits ,',source) ,(expt 2.0 16)))
-              (fb8 (bits)
-                `(/ (read-sb ,bits ,',source) ,(expt 2.0 8)))
-              ,@(loop for a in '(ui8 ui16 ui32 ui64 si8 si16 si32
-                                 fixed8 fixed float16 float32 float64
-                                 twips-u16 twips-s16)
-                      for b in '(read-ui8 read-ui16 read-ui32 read-ui64
-                                 read-si8 read-si16 read-si32
-                                 read-fixed8 read-fixed
-                                 read-float16 read-float32 read-float64
-                                 read-twips-u16 read-twips-s16)
-                      collect `(,a () `(,',b ,',source)))
-              (encodedu32 ()
-                `(read-encodedu32 ,',source))
-              (bit-flag (&key align)
-                `(progn
-                   ,@(when align `((align ,align)))
-                   (read-bit-flag ,',source)))
-              (swf-type (type)
-                `(read-swf-part ,type ,',source))
+  `(symbol-macrolet ((%primitive-type-macro-mode% :read)
+                     (%source% ,source))
+     (macrolet ((align (bits)
+                  `(read-align-source ,bits ,',source))
+                (with-reader-block (size &body body)
+                  ;;fixme: finish this, idea is that we track the end of block
+                  ;; position, and all the readers can check it if available
+                  ;; and complain if they try to read past the end
+                  ;;  (or use it to read to the end, which is immediate reason
+                  ;;   for adding it)
+                  `(let ((*reader-end-of-block*
+                          (cons (+ (file-position ,',source) ,size)
+                                *reader-end-of-block*)))
+                     ,@body)))
 
-              (sized-list (reader size)
-                (alexandria:with-gensyms (end)
-                 `(loop with ,end = (+ ,size (file-position ,',source))
-                        while (< (file-position ,',source) ,end)
-                        collect ,reader)))
-              (list-until (reader test)
-                (alexandria:with-gensyms (value)
-                  ;; todo: this should probably be limited to current tag
-                  ;; to better handle buggy code/bad data
-                 `(loop with ,value = nil
-                        do (setf ,value ,reader)
-                        collect ,value
-                        until (funcall ,test ,value))))
-              (list-until-type (reader end-type)
-                (alexandria:with-gensyms (value)
-                  ;; todo: this should probably be limited to current tag
-                  ;; to better handle buggy code/bad data
-                 `(loop with ,value = nil
-                        do (setf ,value ,reader)
-                        collect ,value
-                        ;; should this quote 'end-type?
-                        until (typep ,value ,end-type))))
-              (counted-list (reader count &key align-elements)
-                `(when ,count
-                   (loop repeat ,count
-                     collect ,reader
-                     ,@(when align-elements
-                             '(do (align 8))))))
-
-              (enumerated-list (&rest types)
-                `(list
-                   ,@types))
-
-              (string-sz-utf8 (&optional max-length)
-                (alexandria:once-only (max-length)
-                  `(progn
-                     (align 8)
-                     (loop with octets = (make-array 128
-                                                     :element-type '(unsigned-byte 8)
-                                                     :adjustable t
-                                                     :fill-pointer 0)
-                           for octet = (read-byte ,',source)
-                           until (or (zerop octet)
-                                     (and ,max-length
-                                          (>= (fill-pointer octets) ,max-length)))
-                           do (vector-push-extend octet octets
-                                                  (* 2 (array-dimension octets 0)))
-                           finally (return (babel:octets-to-string
-                                            octets :encoding :utf-8
-                                            :errorp nil))))))
-              (zlib-data ()
-                `(progn
-                   (align 8)
-                   ;;; fixme: don't use this, chipz reads too much...
-                   (chipz:decompress 'nil 'chipz:zlib ,',source)))
-              (with-reader-block (size &body body)
-                ;;fixme: finish this, idea is that we track the end of block
-                ;; position, and all the readers can check it if available
-                ;; and complain if they try to read past the end
-                ;;  (or use it to read to the end, which is immediate reason
-                ;;   for adding it)
-                `(let ((*reader-end-of-block*
-                        (cons (+ (file-position ,',source) ,size)
-                              *reader-end-of-block*)))
-                  ,@body))
-              (rest-of-tag ()
-                `(let ((seq (make-array (- (car *reader-end-of-block*)
-                                           (file-position ,',source))
-                                        :element-type '(unsigned-byte 8))))
-                   (read-sequence seq ,',source)
-                   seq))
-              (next-octet-zero-p ()
-                `(progn
-                   (read-align-source 8 ,',source)
-                   (let ((a (ui8)))
-                     (setf *partial-octet-read* (cons a 8))
-                     (zerop a))))
-              (next-bits-zero-p (bits)
-                `(let ((a (ub ,bits)))
-                   (if *partial-octet-read*
-                       (progn
-                         (setf (car *partial-octet-read*)
-                               (dpb a
-                                    (byte ,bits (cdr *partial-octet-read*))
-                                    (car *partial-octet-read*)))
-                         (incf (cdr *partial-octet-read*) ,bits))
-                       (setf *partial-octet-read* (cons a ,bits)))
-                   (zerop a)))
-
-              (bytes-left-in-tag ()
-                `(- (car *reader-end-of-block*) (file-position ,',source)))
-
-)
-
-     ;; would it be evil to define symbol macros for all the readers here?
-     ,@body))
+       ;; would it be evil to define symbol macros for all the readers here?
+       ,@body)))
