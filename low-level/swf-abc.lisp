@@ -6,7 +6,7 @@
 ;;(define-swf-type abc-u30 ())
 (defmethod read-swf-part ((type (eql 'abc-u30)) source &key)
   (read-encodedu32 source))
-(defmethod %swf-part-size swf-part ((type (eql 'abc-u30)) this &key)
+(defmethod %swf-part-size swf-part ((type (eql 'abc-u30)) this &key &allow-other-keys)
   (assert (<= 0 this (expt 2 30)))
   (size-encodedu32 this))
 (defmethod write-swf-part swf-part ((type (eql 'abc-u30)) this source)
@@ -17,7 +17,7 @@
 ;; we have a special type for those counts
 (defmethod read-swf-part ((type (eql 'abc-u30+1)) source &key)
   (1- (read-encodedu32 source)))
-(defmethod %swf-part-size swf-part ((type (eql 'abc-u30+1)) this &key)
+(defmethod %swf-part-size swf-part ((type (eql 'abc-u30+1)) this &key &allow-other-keys)
   (assert (<= 0 this (expt 2 30)))
   (with-swf-sizers (v)
     (align 8))
@@ -30,7 +30,7 @@
 ;;(define-swf-type abc-u32 ())
 (defmethod read-swf-part ((type (eql 'abc-u32)) source &key)
   (read-encodedu32 source))
-(defmethod %swf-part-size swf-part ((type (eql 'abc-u32)) this &key)
+(defmethod %swf-part-size swf-part ((type (eql 'abc-u32)) this &key &allow-other-keys)
   (assert (<= 0 this (expt 2 32)))
   (size-encodedu32 this))
 (defmethod write-swf-part swf-part ((type (eql 'abc-u32)) this source)
@@ -43,7 +43,7 @@
     (if (>= u (expt 2 31))
         (- u (expt 2 32))
         u)))
-(defmethod %swf-part-size swf-part ((type (eql 'abc-s32)) this &key)
+(defmethod %swf-part-size swf-part ((type (eql 'abc-s32)) this &key &allow-other-keys)
   (assert (<= (abs this) (expt 2 32)))
   (when (< this 0) (incf this (expt 2 32)))
   (size-encodedu32 this))
@@ -61,7 +61,7 @@
          (octets (read-octet-vector l source))
          (string (babel:octets-to-string octets :encoding :utf-8 :errorp t)))
     string))
-(defmethod %swf-part-size swf-part ((type (eql 'abc-string)) this &key)
+(defmethod %swf-part-size swf-part ((type (eql 'abc-string)) this &key &allow-other-keys)
   (let ((len (babel:string-size-in-octets this :encoding :utf-8)))
     (incf *swf-sizer-bitpos*
           (* 8 len))
@@ -84,7 +84,7 @@
                   (apply #'read-swf-part ',to source rest))
 
                 (defmethod %swf-part-size swf-part ((type (eql ',from)) this
-                                                   &rest rest &key)
+                                                   &rest rest &key &allow-other-keys)
                   (apply #'%swf-part-size ',to this rest))
                 (defmethod write-swf-part swf-part ((type (eql ',from)) this
                                                     source)

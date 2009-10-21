@@ -173,7 +173,7 @@
                     (- (file-position source) start) size (ash size -3)
                     start (file-position source) size size)))))
 
-(defmethod %swf-part-size swf-part (type (tag swf-tag) &key body-only)
+(defmethod %swf-part-size swf-part (type (tag swf-tag) &key body-only &allow-other-keys)
   (declare (ignore type))
   (with-swf-sizers (v)
     (let (#+nil(tag-no (subclass-id tag 'swf-tag))

@@ -104,7 +104,7 @@
   (:method-combination swf-part :most-specific-last)
   (:documentation "calculate size of a swf-part in bits"))
 
-(defmethod %swf-part-size swf-part (type part &rest keys &key)
+(defmethod %swf-part-size swf-part (type part &rest keys &key &allow-other-keys)
   (when (next-method-p) (apply #'call-next-method type part keys)))
 
 (defun swf-part-size (type part &key align body-only)
@@ -251,6 +251,7 @@
                                ,form))
               ;; define reader
            (defmethod read-swf-part ((,type (eql ',class-name)) ,source &rest ,initargs)
+             (declare (ignorable ,source))
              (with-swf-readers (,source)
                (macrolet ((super (slot)
                             `(getf ,',initargs ',slot)))
@@ -297,8 +298,8 @@
                                 m-i))))
                    ,@ (when align-after `((align ,align-after)))))))
            ;; define sizer
-           (defmethod %swf-part-size swf-part (,type-var (,this-var ,class-name) &rest ,rest-var &key)
-             (declare (ignore ,type-var))
+           (defmethod %swf-part-size swf-part (,type-var (,this-var ,class-name) &rest ,rest-var &key &allow-other-keys)
+             (declare (ignorable ,type-var))
              (with-swf-sizers (,value-arg)
                (macrolet ((super (slot)
                             `(,slot ,',this-var)))
@@ -341,7 +342,7 @@
                  ,@ (when align-after `((align ,align-after))))))
            ;; define writer
            (defmethod write-swf-part swf-part (,type-var (,this-var ,class-name) ,source)
-             (declare (ignore ,type-var))
+             (declare (ignorable ,type-var))
              (with-swf-writers (,source ,value-arg)
                (macrolet ((super (slot)
                             `(,slot ,',this-var)))

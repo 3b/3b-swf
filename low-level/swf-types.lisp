@@ -46,10 +46,10 @@
 (defmethod write-swf-part swf-part ((type (eql 'rgb)) (o rgba) s)
   (write-swf-part 'rgb (make-instance 'rgb 'r (r o) 'g (g o) 'b (b o)) s))
 ;; fixme: implement these directly
-(defmethod %swf-part-size swf-part ((type (eql 'rgba)) (o rgb) &key)
+(defmethod %swf-part-size swf-part ((type (eql 'rgba)) (o rgb) &key &allow-other-keys)
   (%swf-part-size 'rgba (make-instance 'rgba
                                       'r (r o) 'g (g o) 'b (b o) 'a 255)))
-(defmethod %swf-part-size swf-part ((type (eql 'rgb)) (o rgba) &key)
+(defmethod %swf-part-size swf-part ((type (eql 'rgb)) (o rgba) &key &allow-other-keys)
   (%swf-part-size 'rgb (make-instance 'rgb 'r (r o) 'g (g o) 'b (b o))))
 
 

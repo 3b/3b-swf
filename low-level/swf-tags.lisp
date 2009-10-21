@@ -52,7 +52,7 @@
       (or (gethash id *character-id-map*)
           (setf (gethash id *character-id-map*) (list (gensym "CHARACTER-ID-") id))))))
 
-(defmethod %swf-part-size swf-part ((type (eql 'character-id)) value &key)
+(defmethod %swf-part-size swf-part ((type (eql 'character-id)) value &key &allow-other-keys)
   ;; don't use actual value since nil is valid here, but (ui16) return
   ;; 0 size for nil
   (with-swf-sizers (0)
