@@ -408,6 +408,14 @@
    (trait-count (swf-type 'abc-u30) :derived (length (traits o)))
    (traits (counted-list (swf-type 'abc-trait-info) trait-count))))
 
+;; possibly should add a setter at some point too...
+(defmethod %raw-flags ((o abc-instance-info))
+  (logior
+   (if (class-protected-ns-p o) #x08 0)
+   (if (class-interface-p o) #x04 0)
+   (if (class-final-p o) #x02 0)
+   (if (class-sealed-p o) #x01 0)))
+
 (define-swf-type abc-class-info ()
   :this-var o
   :auto

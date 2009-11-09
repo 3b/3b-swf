@@ -278,4 +278,18 @@
    #:option-count
    #:options
    #:param-count
-   #:method-id))
+   #:method-id
+   #:symbol-class-symbols
+   #:abc-multiname-qname-a
+   #:abc-multiname-rt-qname
+   #:abc-multiname-rt-qname-a
+   #:abc-multiname-rt-qname-l
+   #:abc-multiname-rt-qname-la
+   #:abc-multiname-multiname
+   #:abc-multiname-multiname-a
+   #:abc-multiname-multiname-l
+   #:abc-multiname-multiname-la
+   #:abc-multiname-generic
+   #:abc-multiname-qname
+   #:params
+   #:exception-type))
