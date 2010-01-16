@@ -52,7 +52,7 @@
     hash
     ))
 
-(defun import-from-swc (imports catalog tags)
+(defun import-from-swc (imports catalog tags &key verbose)
   (let ((deps (copy-list imports)))
     (labels ((dep (import)
                (let ((dep (gethash import catalog)))
@@ -69,7 +69,9 @@
     (loop for tag in tags
        when (and (typep tag '%swf:do-abc-tag)
                  (member (%swf:name tag) deps :test 'string=))
-       collect tag)))
+       collect tag
+       else if (and verbose (typep tag '%swf:do-abc-tag))
+       do (format t "skipping abc tag ~s~%" (%swf:name tag) ))))
 
 (defun read-swc (path)
   (zip:with-zipfile (z path)
@@ -83,7 +85,6 @@
 
 
 
-(defun extract-from-swc (path scripts)
+(defun extract-from-swc (path scripts &key verbose)
   (multiple-value-bind (lib deps) (read-swc path)
-    (import-from-swc scripts deps (getf (cdr lib) :tags)))
-)
+    (import-from-swc scripts deps (getf (cdr lib) :tags) :verbose verbose)))
