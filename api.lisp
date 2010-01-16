@@ -648,8 +648,8 @@ where the tag matching TAG-ID will be renamed to RENAME-ID"
          ((body (s)
             (%3b-swf::with-swf-writers (s vvv)
               (%3b-swf::write-swf-part '%3b-swf::rect bounds s)
-              (%3b-swf::write-fixed8 frame-rate stream)
-              (%3b-swf::write-ui16 frame-count stream )
+              (%3b-swf::write-fixed8 frame-rate s)
+              (%3b-swf::write-ui16 frame-count s )
               (loop for tag in header-tags
                     do (%3b-swf::write-swf-part nil tag s))
               (loop for tag in body-tags
@@ -683,7 +683,9 @@ where the tag matching TAG-ID will be renamed to RENAME-ID"
            (%3b-swf::write-ui32 (/ %3b-swf::*swf-sizer-bitpos* 8) stream))
          (if compress
              (write-sequence (salza2:compress-data
-                              (flex:with-output-to-sequence (s)
-                                (body s)) 'salza2:zlib-compressor)
+                              (coerce (flex:with-output-to-sequence (s)
+                                        (body s))
+                                      '(simple-array (unsigned-byte 8) (*)))
+                              'salza2:zlib-compressor)
                              stream)
              (body stream)))))))
