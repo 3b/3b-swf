@@ -5,7 +5,7 @@
 (define-swf-type sound-info ()
   :this-var o
   :auto
-  ((reserved (ub 2))
+  ((reserved (ub 2) :initform 0)
    (sync-stop (bit-flag))
    (sync-no-multiple (bit-flag))
    (has-envelope (bit-flag) :derived (not (null (envelope-records o))))
@@ -29,6 +29,11 @@
   :auto
   ((sample-count (ui16))
    (mp3-sound-data (swf-type 'mp3-sound-data))))
+
+(define-swf-type mp3-sound-data ()
+  :auto
+  ((seek-samples (ui16))
+   (mp3-frames (rest-of-tag))))
 
 ;; adpcm-sound-data
 ;;adpcm-mono-packet

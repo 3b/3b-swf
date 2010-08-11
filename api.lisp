@@ -253,6 +253,31 @@ matrix, color-transform, blend-mode, cache-as-bitmap: specify params"
       (place-object id depth :matrix (matrix  :tx x :ty y :sx sx :sy sy ) :move-p move-p)
       (place-object id depth :matrix (translate x y) :move-p move-p)))
 
+(defun sound-envelope (&key (pos 0.0) (left 1.0) (right 1.0) level)
+  (when level (setf left level right level))
+  (make-instance '%swf:sound-envelope
+                 '%swf:pos44 (floor (* pos 44100))
+                 '%swf:left-level (floor (* left 32768))
+                 '%swf:right-level (floor (* right 32768))))
+
+(defun sound-info (&key stop no-multiple in-point out-point loop-count envelope)
+  ;; envelope should be list of (:pos pos-in-seconds :left level-from0.0to1.0
+  ;;   :right level-from-0.0-to-1.0)
+  ;; or (:pos pos-in-seconds :level level-from-0.0-to-1.0)
+  (make-instance '%swf:sound-info
+                 '%swf:sync-stop stop
+                 '%swf:sync-no-multiple no-multiple
+                 '%swf:in-point in-point
+                 '%swf:out-point out-point
+                 '%swf:loop-count loop-count
+                 '%swf:envelope-records
+                 (loop for i in envelope
+                    collect (apply #'sound-envelope i))))
+
+(defun start-sound (id &optional sound-info)
+   (make-instance '%swf:start-sound-tag
+                  '%swf:character-id id
+                  '%swf:sound-info (or sound-info (sound-info))))
 (defun end-tag ()
   (make-instance '%swf:swf-end-tag))
 (defun show-frame ()

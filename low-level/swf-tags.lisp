@@ -201,7 +201,12 @@
    (16bit (bit-flag))  ;; else 8 bit
    (stereo (bit-flag))
    (sound-sample-count (ui32))
-   (sound-data (rest-of-tag)))
+   (sound-data (case sound-format
+                 ((0 3) (rest-of-tag))
+                 (1 (rest-of-tag) #++ (swf-type 'adpcm-sound-data))
+                 (2 (swf-type 'mp3-sound-data))
+                 ;; 4,5,6=nellymoser,11=speex
+                 (t (rest-of-tag)))))
   :print-unreadably ("id:~s format:~s rate=~s 16b=~s stereo=~s count=~s"
                      (character-id o) (sound-format o) (sound-rate o)
                      (16bit o) (stereo o) (sound-sample-count o)))

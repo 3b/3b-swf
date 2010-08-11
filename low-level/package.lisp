@@ -292,4 +292,26 @@
    #:abc-multiname-generic
    #:abc-multiname-qname
    #:params
-   #:exception-type))
+   #:exception-type
+   #:sound-sample-count
+   #:stereo
+   #:16bit
+   #:sound-rate
+   #:sound-format
+   #:sound-data
+   #:mp3-sound-data
+   #:seek-samples
+   #:mp3-frames
+   #:sound-info
+   #:sync-stop
+   #:sync-no-multiple
+   #:has-envelope
+   #:in-point
+   #:out-point
+   #:loop-count
+   #:env-points
+   #:envelope-records
+   #:sound-envelope
+   #:pos44
+   #:left-level
+   #:right-level))
