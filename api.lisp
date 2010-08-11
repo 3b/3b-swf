@@ -104,45 +104,48 @@
                                                  '%swf::a ma))))))
 
 (defun matrix* (a b)
-  (flet ((tx (m) (%swf::value1 (%swf::translate m)))
-         (ty (m) (%swf::value2 (%swf::translate m)))
-         (sx (m) (if (%swf::scale m)
-                     (%swf::value1 (%swf::scale m))
-                     1.0))
-         (sy (m) (if (%swf::scale m)
-                     (%swf::value2 (%swf::scale m))
-                     1.0))
-         (rx (m) (if (%swf::rotate-skew m)
-                     (%swf::value1 (%swf::rotate-skew m))
-                     0.0))
-         (ry (m) (if (%swf::rotate-skew m)
-                     (%swf::value2 (%swf::rotate-skew m))
-                     0.0)))
-    (let* ((a1 (sx a)) (c1 (ry a)) (e1 (tx a))
-           (b1 (rx a)) (d1 (sy a)) (f1 (ty a))
-           (a2 (sx b)) (c2 (ry b)) (e2 (tx b))
-           (b2 (rx b)) (d2 (sy b)) (f2 (ty b))
+  ;; assume NIL is an identity matrix for now
+  (if (not (and a b))
+      (or a b)
+      (flet ((tx (m) (%swf::value1 (%swf::translate m)))
+             (ty (m) (%swf::value2 (%swf::translate m)))
+             (sx (m) (if (%swf::scale m)
+                         (%swf::value1 (%swf::scale m))
+                         1.0))
+             (sy (m) (if (%swf::scale m)
+                         (%swf::value2 (%swf::scale m))
+                         1.0))
+             (rx (m) (if (%swf::rotate-skew m)
+                         (%swf::value1 (%swf::rotate-skew m))
+                         0.0))
+             (ry (m) (if (%swf::rotate-skew m)
+                         (%swf::value2 (%swf::rotate-skew m))
+                         0.0)))
+        (let* ((a1 (sx a)) (c1 (ry a)) (e1 (tx a))
+               (b1 (rx a)) (d1 (sy a)) (f1 (ty a))
+               (a2 (sx b)) (c2 (ry b)) (e2 (tx b))
+               (b2 (rx b)) (d2 (sy b)) (f2 (ty b))
 
-           (s1 (+ (* a1 a2) (* c1 b2) (* e1 0)))
-           (r1 (+ (* b1 a2) (* d1 b2) (* f1 0)))
-           (r2 (+ (* a1 c2) (* c1 d2) (* e1 0)))
-           (s2 (+ (* b1 c2) (* d1 d2) (* f1 0)))
-           (t1 (+ (* a1 e2) (* c1 f2) (* e1 1)))
-           (t2 (+ (* b1 e2) (* d1 f2) (* f1 1)))
+               (s1 (+ (* a1 a2) (* c1 b2) (* e1 0)))
+               (r1 (+ (* b1 a2) (* d1 b2) (* f1 0)))
+               (r2 (+ (* a1 c2) (* c1 d2) (* e1 0)))
+               (s2 (+ (* b1 c2) (* d1 d2) (* f1 0)))
+               (t1 (+ (* a1 e2) (* c1 f2) (* e1 1)))
+               (t2 (+ (* b1 e2) (* d1 f2) (* f1 1)))
 
-           (s (when (not (= s1 s2 1.0))
-                (make-instance '%swf:matrix-part-fixed
-                               '%swf:value1 s1 '%swf:value2 s2)))
-           (r (when (not (= r1 r2 0.0))
-                (make-instance '%swf:matrix-part-fixed
-                               '%swf:value1 r1 '%swf:value2 r2)))
-           (tt (make-instance '%swf:matrix-part-translate
-                              '%swf:value1 t1 '%swf:value2 t2)))
-      (when (or s r (not (= t1 t2 0.0)))
-        (make-instance '%swf:matrix
-                       '%swf:rotate-skew r
-                       '%swf:scale s
-                       '%swf:translate tt)))))
+               (s (when (not (= s1 s2 1.0))
+                    (make-instance '%swf:matrix-part-fixed
+                                   '%swf:value1 s1 '%swf:value2 s2)))
+               (r (when (not (= r1 r2 0.0))
+                    (make-instance '%swf:matrix-part-fixed
+                                   '%swf:value1 r1 '%swf:value2 r2)))
+               (tt (make-instance '%swf:matrix-part-translate
+                                  '%swf:value1 t1 '%swf:value2 t2)))
+          (when (or s r (not (= t1 t2 0.0)))
+            (make-instance '%swf:matrix
+                           '%swf:rotate-skew r
+                           '%swf:scale s
+                           '%swf:translate tt))))))
 
 (defun matrix (&key tx ty sx sy rx ry)
   (make-instance
