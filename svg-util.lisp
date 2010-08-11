@@ -1,4 +1,6 @@
 (defpackage :svg-swf
+  (:export
+   #:import-from-svg)
   (:use :common-lisp :3b-swf))
 
 (in-package :svg-swf)
@@ -70,7 +72,7 @@
 (defun parse-filter-op (node)
   (let ((name (dom:tag-name node))
         (in (attribute node "in" "SourceGraphic"))
-        (result (attribute node "result")))
+        #++(result (attribute node "result")))
     (labels ((tag (tag-name) (string-equal name tag-name)))
       (cond
         ((tag "feGaussianBlur")

@@ -12,6 +12,11 @@
 (in-package :svg-swf)
 
 (defvar *document*)
+
+(defun import-from-svg (filename tag-name)
+  (let ((*document* (cxml:parse-file filename (cxml-dom:make-dom-builder))))
+    (render-document tag-name)))
+
 (defparameter *trace* nil)
 (defvar *element-count*)
 (defparameter *clipping* nil)
@@ -55,6 +60,24 @@
 (defparameter *current-transform* (identity-matrix))
 
 
+(defmacro with-sprite ((id) &body body)
+  `(let ((*current-sprite* (list ,id)))
+     ,@body
+     (push *current-sprite* *sprites*)))
+
+
+(defmacro with-shape ((id) &body body)
+  `(let ((*current-shape* (list ,id)))
+     ,@body
+     ;; fixme: should we keep empty shapes?
+     (when (cdr *current-shape*)
+       (push *current-shape* *shapes*))))
+
+(defun new-shape (id)
+  (when (and *current-shape*
+             (cdr *current-shape*))
+    (push *current-shape* *shapes*))
+  (setf *current-shape* (list id)))
 
 (defun render-document (name &key (document *document*))
   "Render an SVG document"
@@ -121,24 +144,6 @@
   (and (dom:element-p node)
        (member (dom:tag-name node) '("svg" "switch" "g" "defs" "clippath")
            :test 'string-equal)))
-
-(defmacro with-shape ((id) &body body)
-  `(let ((*current-shape* (list ,id)))
-     ,@body
-     ;; fixme: should we keep empty shapes?
-     (when (cdr *current-shape*)
-       (push *current-shape* *shapes*))))
-
-(defun new-shape (id)
-  (when (and *current-shape*
-             (cdr *current-shape*))
-    (push *current-shape* *shapes*))
-  (setf *current-shape* (list id)))
-
-(defmacro with-sprite ((id) &body body)
-  `(let ((*current-sprite* (list ,id)))
-     ,@body
-     (push *current-sprite* *sprites*)))
 
 (defun add-to-sprite-filtered (id transform filter opacity)
   ;; just handling a single blur/glow filter on image for now...
