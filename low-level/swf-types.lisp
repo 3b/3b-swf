@@ -30,6 +30,8 @@
 (define-swf-type rgb ()
   :auto ((r (ui8) :initform 255) (g (ui8) :initform 0) (b (ui8) :initform 128)))
 
+(defmethod a ((rgb rgb))
+  255)
 
 (define-swf-type rgba ()
   :auto ((r (ui8) :initform 255)
