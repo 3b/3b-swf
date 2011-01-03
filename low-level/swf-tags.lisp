@@ -750,7 +750,7 @@
    (bounds (swf-type 'rect))
    ;;(areserved (align 8) :initform 0)
    (edge-bounds (swf-type 'rect))
-   (reserved (ub 5) :initform 0)
+   (reserved (ub 5 :align 8) :initform 0)
    ;; fixme: decide on defaults?
    (uses-fill-winding-rule (bit-flag) :initform nil)
    (uses-non-scaling-strokes (bit-flag) :initform nil)
@@ -767,7 +767,7 @@
    (end-bounds (swf-type 'rect))
    (start-edge-bounds (swf-type 'rect))
    (end-edge-bounds (swf-type 'rect))
-   (reserved (ub 6))
+   (reserved (ub 6 :align 8))
    (uses-non-scaling-strokes (bit-flag))
    (uses-scaling-strokes (bit-flag))
    ;; fixme: derive this (offset to end-edges field), and use it...
