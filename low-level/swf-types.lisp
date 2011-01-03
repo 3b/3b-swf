@@ -291,17 +291,17 @@
 (define-swf-type line-style-2 ()
   :this-var o
   :auto
-  ((width (twips-u16))
-   (start-cap-style (ub 2))
-   (join-style (ub 2))
+  ((width (twips-u16) :initform 1)
+   (start-cap-style (ub 2) :initform 0)
+   (join-style (ub 2) :initform 0)
    ;; fixme: make sure we don't have color and fill set at once
    (has-fill (bit-flag) :derived (not (null (fill-type o))))
    (no-h-scale (bit-flag) :initform nil)
    (no-v-scale (bit-flag) :initform nil)
    (pixel-hinting-flag (bit-flag))
    (reserved (ub 5) :initform 0)
-   (no-close (bit-flag))
-   (end-cap-style (ub 2))
+   (no-close (bit-flag) :initform nil)
+   (end-cap-style (ub 2) :initform 0)
    ;; fixme: decide good default for miter-limit-factor?
    (miter-limit-factor (fixed8) :initform 10.0 :optional (= 2 join-style))
    (color (swf-type 'rgba) :optional (not has-fill))
