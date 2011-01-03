@@ -33,7 +33,7 @@
                     '%swf:g (ldb (byte 8 08) (car args))
                     '%swf:b (ldb (byte 8 00) (car args))))
     ((keywordp (car args))
-     (destructuring-bind (&key r g b) args
+     (destructuring-bind (&key (r 0) (g 0) (b 0)) args
        (make-instance '%swf:rgb '%swf:r r '%swf:g g '%swf:b b)))
     (t (error "unknown args in rgb ~s" args))))
 
@@ -46,7 +46,7 @@
                     '%swf:g (ldb (byte 8 08) (car args))
                     '%swf:b (ldb (byte 8 00) (car args))))
     ((keywordp (car args))
-     (destructuring-bind (&key r g b a) args
+     (destructuring-bind (&key (r 0) (g 0 ) (b 0) (a 1)) args
        (make-instance '%swf:rgba '%swf:r r '%swf:g g '%swf:b b '%swf:a a)))
     (t (error "unknown args in rgba ~s" args))))
 
