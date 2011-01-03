@@ -449,6 +449,8 @@ shape-data = list of shape commands:
   )
 
 (defun shape* (id shape-data)
+  ;; possibly should warn about filling the line/fill style arrays, since
+  ;; emitting new ones affects which strokes are over which fills?
   "alternate version of SHAPE, with all style data directly in the op stream,
 so caller doesn't need to worry about reusing previous styles
 id = character-id of shape
@@ -467,6 +469,9 @@ shape-data = list of shape commands:
  (:arc x1 y1 rx ry x-rotation large-flag sweep-flag x2 y2 ) -- svg style arc
   from x1,y1 to x2,y2, params interpreted as in svg
   (http://www.w3.org/TR/SVG/paths.html#PathDataEllipticalArcCommands)
+
+ (:finish-layer) -- start a new fill/line style array, further fills will
+   be drawn above strokes from earlier commands
 
  line style data:
    nil = no stroke
@@ -806,7 +811,8 @@ shape-data = list of shape commands:
               (:ellipse (apply #'add-ellipse (rest i)))
               (:circle (apply #'add-circle (rest i)))
               (:rect (apply #'add-rect (rest i)))
-              (:arc (apply #'add-arc (rest i)))))
+              (:arc (apply #'add-arc (rest i)))
+              (:finish-layer (finish-segment))))
 
       (finish-segment)
 
