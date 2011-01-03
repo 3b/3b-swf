@@ -148,6 +148,26 @@
              ,type))))
 
 
+(define-primitive-type list-while (type test)
+  :read (alexandria:with-gensyms (value)
+          ;; todo: this should probably be limited to current tag
+          ;; to better handle buggy code/bad data
+          `(loop with ,value = nil
+              while (funcall ,test ,value)
+              do (setf ,value ,type)
+              collect ,value))
+  :decl (declare (ignorable test))
+  :size ;; fixme: probably should verify that test hold for last element an no others
+  (alexandria:with-gensyms (i)
+    `(loop for ,i in %value-arg%
+        do (let ((%value-arg% ,i))
+             ,type)))
+  :write ;; fixme: probably should verify that test hold for last element an no others
+  (alexandria:with-gensyms (i)
+    `(loop for ,i in %value-arg%
+        do (let ((%value-arg% ,i))
+             ,type))))
+
 (define-primitive-type list-until (type test)
   :read (alexandria:with-gensyms (value)
           ;; todo: this should probably be limited to current tag

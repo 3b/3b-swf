@@ -165,7 +165,7 @@
    ;;(text-records (list-until-type (swf-type 'text-record) 'text-record-end))
    ;; fixme: is this right? 
    (text-records
-    (list-until (swf-type 'text-record) (lambda (x) x (next-octet-zero-p))))
+    (list-while (swf-type 'text-record) (lambda (x) x (not (next-octet-zero-p)))))
    (end-of-records-flag (ub 8) :initform 0))
 
   )
