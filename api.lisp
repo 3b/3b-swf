@@ -417,6 +417,56 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
                                 '%swf::color
                                 (rgba-float r g b a)))))))
 
+(defun raw-focal-gradient-fill (fr colors transform spread)
+  (make-instance '%swf::fill-focal-gradient
+                 '%swf::gradient-matrix transform
+                 '%swf::gradient
+                 (make-instance
+                  '%swf::focal-gradient
+                  '%swf::focal-point (max -1.0 (min fr 1.0))
+                  '%swf::spread-mode spread
+                  '%swf::interpolation-mode 0 ;; 0=normal,1=linear
+                  '%swf::gradient-records
+                  (loop for (i (r g b a)) in colors
+                     collect (make-instance
+                              '%swf::grad-record
+                              '%swf::gradient-ratio (floor (* 255 i))
+                              '%swf::color
+                              (rgba-float r g b a))))))
+
+(defun raw-radial-gradient-fill (colors transform spread)
+  (make-instance '%swf::fill-radial-gradient
+                 '%swf::gradient-matrix
+                 transform
+                 '%swf::gradient
+                 (make-instance
+                  '%swf::gradient
+                  '%swf::spread-mode spread
+                  '%swf::interpolation-mode 0 ;; 0=normal,1=linear
+                  '%swf::gradient-records
+                  (loop for (i (r g b a)) in colors
+                     collect (make-instance
+                              '%swf::grad-record
+                              '%swf::gradient-ratio (floor (* i 255))
+                              '%swf::color
+                              (rgba-float r g b a))))))
+
+(defun raw-linear-gradient-fill (colors transform spread)
+  (make-instance '%swf::fill-linear-gradient
+                 '%swf::gradient-matrix
+                 transform
+                 '%swf::gradient
+                 (make-instance
+                  '%swf::gradient
+                  '%swf::spread-mode spread
+                  '%swf::interpolation-mode 0 ;; 0=normal,1=linear
+                  '%swf::gradient-records
+                  (loop for (i (r g b a)) in colors
+                     collect (make-instance
+                              '%swf::grad-record
+                              '%swf::gradient-ratio (floor (* i 255))
+                              '%swf::color
+                              (rgba-float r g b a))))))
 
 (defun radial-gradient-fill (x y r colors transform spread)
   (focal-gradient-fill x y x y r colors transform spread))
@@ -442,6 +492,14 @@ if the last element of TAGS isn't :end or an swf-end-tag instance
      (apply #'focal-gradient-fill (cdr fill)))
     (:radial-gradient
      (apply #'radial-gradient-fill (cdr fill)))
+    ;; 
+    (:raw-focal-gradient
+     (apply #'raw-focal-gradient-fill (cdr fill)))
+    (:raw-radial-gradient
+     (apply #'raw-radial-gradient-fill (cdr fill)))
+    (:raw-linear-gradient
+     (apply #'raw-linear-gradient-fill (cdr fill)))
+
     ;; default to fill style 0
     (t
      (error "unknown fill ~s" fill))))
