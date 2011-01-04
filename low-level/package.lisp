@@ -334,4 +334,7 @@
    #:gradient-records
    #:gradient
    #:gradient-matrix
-   #:focal-point))
+   #:focal-point
+   #:bitmap-matrix
+   #:spread-mode
+   #:interpolation-mode))
