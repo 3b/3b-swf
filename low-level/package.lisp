@@ -314,4 +314,24 @@
    #:sound-envelope
    #:pos44
    #:left-level
-   #:right-level))
+   #:right-level
+   #:straight-edge-shape-record
+   #:move-to
+   #:delta-x
+   #:delta-y
+   #:curved-edge-shape-record
+   #:control-delta-x
+   #:control-delta-y
+   #:anchor-delta-x
+   #:anchor-delta-y
+   #:fill-style-solid
+   #:color
+   #:fill-style-0
+   #:fill-style-1
+   #:fill-linear-gradient
+   #:fill-radial-gradient
+   #:fill-focal-gradient
+   #:gradient-records
+   #:gradient
+   #:gradient-matrix
+   #:focal-point))
