@@ -133,6 +133,15 @@
 (define-swf-type set-background-color-tag (swf-tag) ;;+rw
   :id 9
   :auto ((background-color (swf-type 'rgb))))
+;; todo: setf methods..
+(defmethod r ((bg set-background-color-tag))
+  (r (background-color bg)))
+(defmethod g ((bg set-background-color-tag))
+  (g (background-color bg)))
+(defmethod b ((bg set-background-color-tag))
+  (b (background-color bg)))
+(defmethod a ((bg set-background-color-tag))
+  (a (background-color bg)))
 
 (define-swf-type define-font-tag (swf-tag)
   :id 10
