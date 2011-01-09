@@ -337,4 +337,7 @@
    #:focal-point
    #:bitmap-matrix
    #:spread-mode
-   #:interpolation-mode))
+   #:interpolation-mode
+   #:gradient-ratio
+
+   ))
