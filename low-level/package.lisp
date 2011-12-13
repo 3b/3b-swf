@@ -339,5 +339,6 @@
    #:spread-mode
    #:interpolation-mode
    #:gradient-ratio
-
+   #:override-p
+   #:final-p
    ))
